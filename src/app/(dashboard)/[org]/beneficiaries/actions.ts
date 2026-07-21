@@ -7,6 +7,7 @@ import { can, PERMISSIONS } from "@/lib/auth/permissions";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { dbRetry } from "@/lib/db/prisma";
+import { Resend } from "resend";
 
 const BeneficiarySchema = z.object({
   firstName: z.string().min(2, "First name is required"),
@@ -54,9 +55,34 @@ export async function createBeneficiary(orgSlug: string, formData: FormData): Pr
   }
   const data = parsed.data;
 
+  // ── Duplicate check ───────────────────────────────────────────────
+  const dupeChecks: { birthCertNo?: string; nationalId?: string }[] = [];
+  if (data.birthCertNo) dupeChecks.push({ birthCertNo: data.birthCertNo });
+  if (data.nationalId)  dupeChecks.push({ nationalId:  data.nationalId });
+  if (dupeChecks.length > 0) {
+    const existing = await dbRetry(() =>
+      prisma.beneficiary.findFirst({
+        where: { organizationId: ctx.organization.id, deletedAt: null, OR: dupeChecks },
+        select: { id: true, firstName: true, lastName: true, admissionNo: true, birthCertNo: true, nationalId: true },
+      })
+    );
+    if (existing) {
+      const field = existing.birthCertNo === data.birthCertNo ? `birth certificate ${data.birthCertNo}` : `national ID ${data.nationalId}`;
+      const ref   = existing.admissionNo ? ` (${existing.admissionNo})` : "";
+      return { ok: false, errors: { _form: [`Duplicate: ${existing.firstName} ${existing.lastName}${ref} is already registered with the same ${field}.`] } };
+    }
+  }
+
+  // ── Auto-generate admission number ────────────────────────────────
+  const prefix  = orgSlug.slice(0, 3).toUpperCase();
+  const yr      = new Date().getFullYear().toString().slice(2);
+  const count   = await dbRetry(() => prisma.beneficiary.count({ where: { organizationId: ctx.organization.id } }));
+  const admissionNo = `${prefix}${yr}-${String(count + 1).padStart(4, "0")}`;
+
   const beneficiary = await dbRetry(() => prisma.beneficiary.create({
     data: {
       organizationId: ctx.organization.id,
+      admissionNo,
       firstName: data.firstName,
       middleName: data.middleName || null,
       lastName: data.lastName,
@@ -298,4 +324,102 @@ export async function createScoutReport(orgSlug: string, beneficiaryId: string, 
   );
 
   revalidatePath(`/${orgSlug}/beneficiaries/${beneficiaryId}`);
+}
+
+// ── Report email action ────────────────────────────────────────────────────
+
+const AGE_BRACKET_RANGES: Record<string, [number, number]> = {
+  U10: [0, 10], U12: [10, 12], U14: [12, 14],
+  U16: [14, 16], U18: [16, 18], Senior: [18, 120],
+};
+
+export async function emailReport(orgSlug: string, formData: FormData) {
+  const ctx = await requireTenant(orgSlug);
+
+  const emailTo        = (formData.get("emailTo") as string)?.trim();
+  const subject        = (formData.get("subject") as string)?.trim() || `Player Registry Report — ${ctx.organization.name}`;
+  const position       = (formData.get("position") as string) || "";
+  const ageBracket     = (formData.get("ageBracket") as string) || "";
+  const county         = (formData.get("county") as string) || "";
+  const recommendation = (formData.get("recommendation") as string) || "";
+
+  if (!emailTo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTo)) {
+    return { ok: false, message: "Please enter a valid email address." };
+  }
+
+  const where: Record<string, unknown> = { organizationId: ctx.organization.id, deletedAt: null };
+  if (position) where.athleteProfile = { position };
+  if (county)   where.county = { contains: county, mode: "insensitive" };
+  if (ageBracket && AGE_BRACKET_RANGES[ageBracket]) {
+    const [min, max] = AGE_BRACKET_RANGES[ageBracket];
+    const today = new Date();
+    where.dateOfBirth = {
+      gte: new Date(today.getFullYear() - max, today.getMonth(), today.getDate()),
+      lt:  new Date(today.getFullYear() - min, today.getMonth(), today.getDate()),
+    };
+  }
+
+  const players = await dbRetry(() =>
+    prisma.beneficiary.findMany({
+      where: where as any,
+      include: {
+        athleteProfile: true,
+        studentProfile: true,
+        scoutReports: { orderBy: { reportDate: "desc" }, take: 1 },
+      },
+      orderBy: { lastName: "asc" },
+    })
+  );
+
+  let filtered = players;
+  if (recommendation === "NOT_ASSESSED") filtered = players.filter(p => p.scoutReports.length === 0);
+  else if (recommendation)              filtered = players.filter(p => p.scoutReports[0]?.recommendation === recommendation);
+
+  const REC_LABELS: Record<string, string> = { SIGN: "Sign", MONITOR: "Monitor", DECLINE: "Decline", REVIEW_LATER: "Review Later" };
+  const tableRows = filtered.map(p => {
+    const dob = p.dateOfBirth;
+    const age = dob ? Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : "—";
+    const rec = p.scoutReports[0]?.recommendation;
+    return `<tr style="border-bottom:1px solid #e5e7eb">
+      <td style="padding:8px 12px;font-family:monospace;font-size:12px">${p.admissionNo ?? "—"}</td>
+      <td style="padding:8px 12px">${p.lastName}, ${p.firstName}</td>
+      <td style="padding:8px 12px;text-align:center">${age}</td>
+      <td style="padding:8px 12px">${p.athleteProfile?.position ?? "—"}</td>
+      <td style="padding:8px 12px">${p.studentProfile?.school ?? "—"}</td>
+      <td style="padding:8px 12px">${p.county ?? "—"}</td>
+      <td style="padding:8px 12px">${rec ? REC_LABELS[rec] ?? rec : "Not assessed"}</td>
+    </tr>`;
+  }).join("");
+
+  const html = `<!DOCTYPE html><html><body style="font-family:sans-serif;color:#111;max-width:900px;margin:0 auto;padding:24px">
+    <h2 style="margin-bottom:4px">${ctx.organization.name} — Player Registry Report</h2>
+    <p style="color:#6b7280;margin-top:0">Generated ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })} · ${filtered.length} player(s)</p>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <thead><tr style="background:#f3f4f6;text-align:left">
+        <th style="padding:8px 12px">Reg No.</th><th style="padding:8px 12px">Name</th>
+        <th style="padding:8px 12px;text-align:center">Age</th><th style="padding:8px 12px">Position</th>
+        <th style="padding:8px 12px">School</th><th style="padding:8px 12px">County</th>
+        <th style="padding:8px 12px">Status</th>
+      </tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+    <p style="color:#9ca3af;font-size:12px;margin-top:24px">Lerato Platform · Confidential</p>
+  </body></html>`;
+
+  if (!process.env.RESEND_API_KEY) {
+    return { ok: false, message: "Email sending is not configured (RESEND_API_KEY not set). Add it in Vercel environment variables." };
+  }
+
+  try {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    await resend.emails.send({
+      from:    process.env.EMAIL_FROM ?? "Lerato Platform <noreply@leratofoundation.org>",
+      to:      emailTo,
+      subject,
+      html,
+    });
+    return { ok: true, message: `Report sent to ${emailTo}` };
+  } catch (e: any) {
+    return { ok: false, message: (e as Error)?.message ?? "Failed to send email." };
+  }
 }

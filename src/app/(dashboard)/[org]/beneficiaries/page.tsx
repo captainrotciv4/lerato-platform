@@ -1,7 +1,7 @@
 import { requireTenant } from "@/lib/tenant/context";
 import { prisma, dbRetry } from "@/lib/db/prisma";
 import Link from "next/link";
-import { Plus, Upload } from "lucide-react";
+import { Plus, Upload, BarChart2 } from "lucide-react";
 import { can, PERMISSIONS } from "@/lib/auth/permissions";
 import { fullName, formatDate } from "@/lib/utils";
 
@@ -62,6 +62,9 @@ export default async function BeneficiariesPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link href={`/${org}/beneficiaries/report` as any} className="btn-secondary inline-flex items-center gap-2">
+            <BarChart2 className="h-4 w-4" /> Report
+          </Link>
           {canWrite && (
             <Link href={`/${org}/beneficiaries/upload` as any} className="btn-secondary inline-flex items-center gap-2">
               <Upload className="h-4 w-4" /> Import CSV

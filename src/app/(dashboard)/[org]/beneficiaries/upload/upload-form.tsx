@@ -9,6 +9,7 @@ import { ArrowLeft, Download, Upload, CheckCircle2, XCircle, FileText, AlertTria
 const HEADERS = [
   "firstName", "lastName", "middleName",
   "dateOfBirth", "gender",
+  "admissionNo", "birthCertNo", "nationalId",
   "phone", "email", "county", "address",
   "guardianName", "guardianPhone", "guardianEmail", "guardianRelationship",
   "isAthlete", "isStudent",
@@ -22,6 +23,9 @@ const FIELD_NOTES: Record<string, string> = {
   middleName:           "Optional",
   dateOfBirth:          "Required — YYYY-MM-DD",
   gender:               "Required — MALE / FEMALE / OTHER / PREFER_NOT_TO_SAY",
+  admissionNo:          "Optional — leave blank to auto-generate (e.g. DAR26-0001)",
+  birthCertNo:          "Optional — birth certificate number (used to detect duplicates)",
+  nationalId:           "Optional — national ID number (used to detect duplicates)",
   phone:                "Optional — e.g. +254712345678",
   email:                "Optional",
   county:               "Optional — residential county or area",
@@ -40,9 +44,9 @@ const FIELD_NOTES: Record<string, string> = {
 };
 
 const EXAMPLE_ROWS = [
-  ["John", "Kamau", "", "2008-03-15", "MALE", "+254712345678", "", "Nairobi", "Westlands",
+  ["John", "Kamau", "", "2008-03-15", "MALE", "", "", "", "+254712345678", "", "Nairobi", "Westlands",
    "Mary Kamau", "+254712345679", "", "Mother", "true", "true", "ST", "RIGHT", "", "Westlands Primary", "Standard 7"],
-  ["Grace", "Wanjiku", "", "2009-07-20", "FEMALE", "", "", "Kiambu", "",
+  ["Grace", "Wanjiku", "", "2009-07-20", "FEMALE", "", "", "", "", "", "Kiambu", "",
    "Peter Wanjiku", "+254798765432", "", "Father", "true", "true", "GK", "RIGHT", "", "Kiambu Girls Primary", "Standard 6"],
 ];
 

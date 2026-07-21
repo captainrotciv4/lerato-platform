@@ -59,6 +59,10 @@ export async function POST(
   }
 
   const orgId = membership.organization.id;
+  const prefix = org.slice(0, 3).toUpperCase();
+  const yr = new Date().getFullYear().toString().slice(2);
+  const baseCount = await dbRetry(() => prisma.beneficiary.count({ where: { organizationId: orgId } }));
+
   let created = 0;
   let skipped = 0;
   const errors: string[] = [];
@@ -88,14 +92,40 @@ export async function POST(
       continue;
     }
 
+    // Duplicate check on identity documents
+    const dupeChecks: { birthCertNo?: string; nationalId?: string }[] = [];
+    if (row.birthCertNo?.trim()) dupeChecks.push({ birthCertNo: row.birthCertNo.trim() });
+    if (row.nationalId?.trim())  dupeChecks.push({ nationalId:  row.nationalId.trim()  });
+    if (dupeChecks.length > 0) {
+      const existing = await dbRetry(() =>
+        prisma.beneficiary.findFirst({
+          where: { organizationId: orgId, deletedAt: null, OR: dupeChecks },
+          select: { firstName: true, lastName: true, admissionNo: true, birthCertNo: true, nationalId: true },
+        })
+      );
+      if (existing) {
+        const field = existing.birthCertNo && existing.birthCertNo === row.birthCertNo?.trim()
+          ? `birth certificate ${row.birthCertNo.trim()}`
+          : `national ID ${row.nationalId?.trim()}`;
+        const ref = existing.admissionNo ? ` (${existing.admissionNo})` : "";
+        errors.push(`${label}: Duplicate — ${existing.firstName} ${existing.lastName}${ref} already registered with the same ${field}.`);
+        skipped++;
+        continue;
+      }
+    }
+
     const isAthlete = ["true", "1", "yes", "y"].includes(row.isAthlete?.trim().toLowerCase() ?? "");
     const isStudent = ["true", "1", "yes", "y"].includes(row.isStudent?.trim().toLowerCase() ?? "");
 
     try {
+      const admissionNo = row.admissionNo?.trim()
+        || `${prefix}${yr}-${String(baseCount + created + 1).padStart(4, "0")}`;
+
       const beneficiary = await dbRetry(() =>
         prisma.beneficiary.create({
           data: {
             organizationId: orgId,
+            admissionNo,
             firstName:            row.firstName.trim(),
             middleName:           row.middleName?.trim()           || null,
             lastName:             row.lastName.trim(),
@@ -105,6 +135,8 @@ export async function POST(
             email:                row.email?.trim()               || null,
             county:               row.county?.trim()              || null,
             address:              row.address?.trim()             || null,
+            birthCertNo:          row.birthCertNo?.trim()         || null,
+            nationalId:           row.nationalId?.trim()          || null,
             guardianName:         row.guardianName?.trim()        || null,
             guardianPhone:        row.guardianPhone?.trim()       || null,
             guardianEmail:        row.guardianEmail?.trim()       || null,
@@ -144,7 +176,7 @@ export async function POST(
     } catch (e: any) {
       const msg: string = e?.message ?? String(e);
       errors.push(
-        `${label}: ${msg.includes("Unique constraint") ? "duplicate record — phone or email already registered" : msg}`
+        `${label}: ${msg.includes("Unique constraint") ? "duplicate — admission number, national ID, or birth certificate already registered" : msg}`
       );
       skipped++;
     }

@@ -191,6 +191,7 @@ model Beneficiary {
   organization    Organization @relation(fields: [organizationId], references: [id])
 
   // Identity
+  admissionNo     String?              // auto-generated on registration: DAR26-0001
   firstName       String
   middleName      String?
   lastName        String
@@ -236,6 +237,9 @@ model Beneficiary {
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
 
+  @@unique([organizationId, admissionNo])
+  @@unique([organizationId, nationalId])
+  @@unique([organizationId, birthCertNo])
   @@index([organizationId])
   @@index([lastName, firstName])
   @@index([nationalId])

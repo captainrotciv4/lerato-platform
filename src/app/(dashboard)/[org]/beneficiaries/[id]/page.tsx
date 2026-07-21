@@ -114,6 +114,9 @@ export default async function PlayerProfilePage({
 
           {/* Name + meta */}
           <div className="flex-1 min-w-0">
+            {beneficiary.admissionNo && (
+              <p className="mb-1 font-mono text-xs text-[var(--fg-muted)]">{beneficiary.admissionNo}</p>
+            )}
             <h1 className="font-display text-3xl font-bold text-[var(--fg)]">{name}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {ap?.position && (
