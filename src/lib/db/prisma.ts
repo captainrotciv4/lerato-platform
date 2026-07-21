@@ -55,7 +55,7 @@ function createClient(): PrismaClient {
           return dbRetry(() => Promise.all(fnOrQueries as Promise<unknown>[]));
         };
       }
-      return (target as Record<string | symbol, unknown>)[prop];
+      return (target as unknown as Record<string | symbol, unknown>)[prop];
     },
   }) as PrismaClient;
 
