@@ -9,7 +9,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import { prisma } from "@/lib/db/prisma";
+import { prisma, dbRetry } from "@/lib/db/prisma";
 import { compare } from "bcryptjs";
 import { z } from "zod";
 import { authConfig } from "./config";
@@ -33,18 +33,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const parsed = CredentialsSchema.safeParse(credentials);
         if (!parsed.success) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: parsed.data.email },
-        });
+        const user = await dbRetry(() =>
+          prisma.user.findUnique({ where: { email: parsed.data.email } })
+        );
         if (!user || !user.hashedPassword || !user.active) return null;
 
         const valid = await compare(parsed.data.password, user.hashedPassword);
         if (!valid) return null;
 
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { lastSeenAt: new Date() },
-        });
+        await dbRetry(() =>
+          prisma.user.update({
+            where: { id: user.id },
+            data: { lastSeenAt: new Date() },
+          })
+        );
 
         return {
           id: user.id,
