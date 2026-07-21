@@ -26,16 +26,19 @@ export type SerializableNavItem =
 export function SidebarNavLinks({
   items,
   orgSlug,
+  collapsed = false,
 }: {
   items: SerializableNavItem[];
   orgSlug: string;
+  collapsed?: boolean;
 }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex-1 overflow-y-auto px-3 py-3">
+    <nav className="flex-1 overflow-y-auto px-2 py-3">
       {items.map((item, i) => {
         if ("section" in item) {
+          if (collapsed) return null;
           const next = items[i + 1];
           if (!next || "section" in next) return null;
           return (
@@ -59,8 +62,10 @@ export function SidebarNavLinks({
           <Link
             key={i}
             href={fullHref as any}
+            title={collapsed ? item.label : undefined}
             className={cn(
-              "group mb-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-100",
+              "group mb-0.5 flex items-center rounded-lg px-3 py-2 text-sm transition-all duration-100",
+              collapsed ? "justify-center gap-0" : "gap-3",
               isActive
                 ? "bg-[var(--brand-primary)] font-semibold text-white shadow-sm"
                 : "text-[var(--fg)] hover:bg-[var(--bg-muted)] hover:text-[var(--fg)]"
@@ -68,11 +73,12 @@ export function SidebarNavLinks({
           >
             <Icon
               className={cn(
-                "h-4 w-4 shrink-0",
+                "shrink-0",
+                collapsed ? "h-5 w-5" : "h-4 w-4",
                 isActive ? "text-white/90" : "text-[var(--fg-muted)] group-hover:text-[var(--fg)]"
               )}
             />
-            {item.label}
+            {!collapsed && item.label}
           </Link>
         );
       })}
