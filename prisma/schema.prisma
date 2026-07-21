@@ -1,0 +1,1460 @@
+// Lerato Platform — Database Schema
+// Multi-organization management platform for Lerato Foundation, Darajani Sports Academy, and Agape in Action.
+//
+// Author: Victor Muoki <victor@victormuoki.com>
+// Reference: VMK-Q-2026-0617
+//
+// Design principles:
+//   1. Single database, shared schema, row-level isolation by organizationId
+//   2. Every tenant-scoped model has organizationId FK and an index on it
+//   3. Cross-org sharing via `sharedWith` join tables for Donor & Partner
+//   4. Audit trail on every mutation via AuditLog
+//   5. Soft deletes via deletedAt; never hard-delete beneficiary or financial data
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ════════════════════════════════════════════════════════════════════
+// ORGANIZATIONS & MULTI-TENANCY
+// ════════════════════════════════════════════════════════════════════
+
+model Organization {
+  id          String   @id @default(cuid())
+  slug        String   @unique          // lerato, darajani, agape
+  name        String                    // "Lerato Foundation"
+  shortName   String                    // "Lerato"
+  legalName   String?                   // Full legal name for compliance reports
+  taxId       String?
+  registrationNo String?
+  type        OrgType                   // FOUNDATION, ACADEMY, MISSION
+
+  // Branding
+  logoUrl     String?
+  primaryColor   String  @default("#ED1C24")
+  secondaryColor String  @default("#231F20")
+  accentColor    String?
+
+  // Contact
+  email       String?
+  phone       String?
+  whatsapp    String?
+  website     String?
+  address     String?
+  county      String?
+  country     String  @default("Kenya")
+
+  // About
+  description   String?                   // Public-facing org description
+  launchDate    DateTime?                 // Official launch / founding date
+
+  // Email / Communications
+  emailFromName    String?               // Display name for outbound emails e.g. "Lerato Foundation"
+  emailFromAddress String?               // From address override e.g. "no-reply@lerato.org"
+  emailReplyTo     String?               // Reply-to address
+
+  // Social media
+  linkedinUrl   String?
+  facebookUrl   String?
+  instagramUrl  String?
+  twitterUrl    String?
+
+  // Relations
+  memberships     Membership[]
+  beneficiaries   Beneficiary[]
+  staffVolunteers StaffVolunteer[]
+  branches        Branch[]
+  partnerships    Partnership[]          @relation("OrgPartnerships")
+  events          Event[]
+  transactions    Transaction[]
+  programs        Program[]
+  missions        Mission[]
+  reports         Report[]
+  auditLogs       AuditLog[]
+  sharedDonors    DonorShare[]
+
+  // Fund allocations & approval rules
+  allocationsFrom FundAllocation[] @relation("AllocationSource")
+  allocationsTo   FundAllocation[] @relation("AllocationDestination")
+  approvalRules   ApprovalRule[]   @relation("OrgApprovalRules")
+
+  // Chart of accounts
+  accounts        Account[]
+
+  // Extended modules
+  journalEntries  JournalEntry[]
+  fixedAssets     FixedAsset[]
+  budgets         Budget[]
+  leaveRequests   LeaveRequest[]
+  payrollRecords  PayrollRecord[]
+  vendors         Vendor[]
+  purchaseOrders  PurchaseOrder[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  @@index([slug])
+}
+
+enum OrgType {
+  FOUNDATION   // Lerato
+  ACADEMY      // Darajani
+  MISSION      // Agape in Action
+  OTHER
+}
+
+// ════════════════════════════════════════════════════════════════════
+// USERS, ROLES & AUTH
+// ════════════════════════════════════════════════════════════════════
+
+model User {
+  id              String   @id @default(cuid())
+  email           String?  @unique
+  emailVerified   DateTime?
+  phone           String?  @unique
+  phoneVerified   DateTime?
+  name            String
+  avatarUrl       String?
+  hashedPassword  String?                 // null if passwordless
+  active          Boolean  @default(true)
+
+  // Cross-org memberships — a user can have different roles in different orgs
+  memberships     Membership[]
+
+  // Activity
+  sessions        Session[]
+  auditLogs       AuditLog[]              @relation("AuditActor")
+  scoutReports    ScoutReport[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastSeenAt      DateTime?
+  deletedAt       DateTime?
+
+  @@index([email])
+  @@index([phone])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt    DateTime
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Membership {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role            Role
+  permissions     String[]              // Override permissions beyond role default
+  active          Boolean  @default(true)
+  invitedById     String?
+  joinedAt        DateTime @default(now())
+  revokedAt       DateTime?
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+enum Role {
+  ADMIN
+  PROGRAMME_MANAGER
+  FINANCE
+  FINANCE_LEAD              // senior finance — can approve mid-tier allocations
+  COMMUNICATIONS
+  FIELD_STAFF
+  BOARD_OBSERVER            // read-only board visibility
+  BOARD_MEMBER              // can approve high-tier allocations
+}
+
+// ════════════════════════════════════════════════════════════════════
+// PEOPLE — BENEFICIARIES (students, players, programme participants)
+// ════════════════════════════════════════════════════════════════════
+
+model Beneficiary {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+
+  // Identity
+  firstName       String
+  middleName      String?
+  lastName        String
+  dateOfBirth     DateTime
+  gender          Gender
+  nationalId      String?
+  birthCertNo     String?
+
+  // Contact
+  phone           String?
+  email           String?
+  address         String?
+  county          String?
+  guardianName    String?
+  guardianPhone   String?
+  guardianEmail   String?
+  guardianRelationship String?           // Mother, Father, Uncle, Legal Guardian…
+
+  // Programme links
+  enrolments      ProgramEnrolment[]
+
+  // Athlete-specific (for Darajani — nullable for non-athletes)
+  athleteProfile  AthleteProfile?
+
+  // Student-specific
+  studentProfile  StudentProfile?
+
+  // Scouting
+  scoutReports    ScoutReport[]
+
+  // Records
+  attendances         Attendance[]
+  trainingAttendances TrainingAttendance[]
+  outcomes            Outcome[]
+  surveyResponses     SurveyResponse[]
+
+  // Branch assignment (Darajani)
+  branchId        String?
+  branch          Branch?  @relation(fields: [branchId], references: [id])
+
+  // Soft delete + audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  @@index([organizationId])
+  @@index([lastName, firstName])
+  @@index([nationalId])
+  @@index([branchId])
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+// Athlete-specific — FIFA/FKF compliance
+model AthleteProfile {
+  id                  String   @id @default(cuid())
+  beneficiaryId       String   @unique
+  beneficiary         Beneficiary @relation(fields: [beneficiaryId], references: [id], onDelete: Cascade)
+  jerseyNumber        Int?
+  position            String?              // GK, CB, CM, ST, etc.
+  preferredFoot       String?              // LEFT, RIGHT, BOTH
+  heightCm            Float?
+  weightKg            Float?
+  // FIFA compliance fields
+  fifaPlayerId        String?  @unique
+  fkfRegistrationNo   String?  @unique
+  passportNo          String?
+  registeredAt        DateTime?
+  registrationStatus  String?
+  // Performance
+  matchesPlayed       Int      @default(0)
+  goals               Int      @default(0)
+  assists             Int      @default(0)
+  cleanSheets         Int      @default(0)
+  yellowCards         Int      @default(0)
+  redCards            Int      @default(0)
+
+  // Player database fields
+  currentClub         String?              // other club the player trains with
+  playingStrengths    String?              // free-text strengths narrative
+  areasToImprove      String?              // free-text development areas
+  characterNotes      String?              // discipline, attitude, teamwork
+
+  @@index([fifaPlayerId])
+  @@index([fkfRegistrationNo])
+}
+
+// Student-specific
+model StudentProfile {
+  id              String   @id @default(cuid())
+  beneficiaryId   String   @unique
+  beneficiary     Beneficiary @relation(fields: [beneficiaryId], references: [id], onDelete: Cascade)
+  school          String?
+  grade           String?
+  scholarshipType String?
+  enrolledAt      DateTime?
+  graduatedAt     DateTime?
+  academicScore   Float?
+  academicNotes   String?              // narrative on academic performance
+  notes           String?
+}
+
+// Scout reports — one per scouting session per player
+model ScoutReport {
+  id              String      @id @default(cuid())
+  beneficiaryId   String
+  beneficiary     Beneficiary @relation(fields: [beneficiaryId], references: [id], onDelete: Cascade)
+  scoutId         String?
+  scout           User?       @relation(fields: [scoutId], references: [id])
+  reportDate      DateTime    @default(now())
+  recommendation  String      // SIGN, MONITOR, DECLINE, REVIEW_LATER
+  strengths       String?
+  areasToImprove  String?
+  characterNotes  String?
+  academicNotes   String?
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([beneficiaryId])
+  @@index([scoutId])
+  @@index([reportDate])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// PEOPLE — DONORS
+// ════════════════════════════════════════════════════════════════════
+
+model Donor {
+  id              String   @id @default(cuid())
+  type            DonorType
+
+  // Identity
+  firstName       String?
+  lastName        String?
+  organizationName String?            // for institutional donors
+  email           String?
+  phone           String?
+  whatsapp        String?
+  address         String?
+  country         String   @default("Kenya")
+
+  // Profile
+  tier            DonorTier @default(BRONZE)
+  taxExempt       Boolean  @default(false)
+  taxId           String?
+  commPreferences String[]            // ["email", "sms", "whatsapp"]
+  notes           String?
+
+  // Cross-org: which orgs is this donor associated with
+  sharedWith      DonorShare[]
+
+  // Giving
+  donations       Donation[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  @@index([email])
+  @@index([lastName, firstName])
+}
+
+enum DonorType {
+  INDIVIDUAL
+  ORGANIZATION
+  ANONYMOUS
+}
+
+enum DonorTier {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+  PATRON
+}
+
+// Cross-org donor sharing — a donor can give to multiple orgs
+model DonorShare {
+  id              String   @id @default(cuid())
+  donorId         String
+  donor           Donor    @relation(fields: [donorId], references: [id], onDelete: Cascade)
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  relationshipNote String?
+  addedAt         DateTime @default(now())
+
+  @@unique([donorId, organizationId])
+  @@index([organizationId])
+}
+
+model Donation {
+  id              String   @id @default(cuid())
+  donorId         String
+  donor           Donor    @relation(fields: [donorId], references: [id])
+  organizationId  String                              // which org received the donation
+  amount          Decimal  @db.Decimal(12, 2)
+  currency        String   @default("KES")
+  channel         DonationChannel
+  reference       String?                             // M-PESA receipt, bank ref, etc.
+  designatedFor   String?                             // programme it was earmarked for
+  programId       String?
+  receivedAt      DateTime @default(now())
+  acknowledgedAt  DateTime?
+  receiptIssued   Boolean  @default(false)
+  notes           String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([donorId])
+  @@index([organizationId])
+  @@index([receivedAt])
+}
+
+enum DonationChannel {
+  MPESA
+  BANK_TRANSFER
+  CASH
+  CHEQUE
+  CARD
+  CRYPTO
+  OTHER
+}
+
+// ════════════════════════════════════════════════════════════════════
+// PEOPLE — STAFF & VOLUNTEERS
+// ════════════════════════════════════════════════════════════════════
+
+model StaffVolunteer {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+
+  firstName       String
+  lastName        String
+  email           String?
+  phone           String?
+  type            StaffType
+  position        String?
+  department      String?
+  startDate       DateTime?
+  endDate         DateTime?
+  active          Boolean  @default(true)
+
+  // Certifications
+  certifications  String[]
+  notes           String?
+
+  // HR relations
+  leaveRequests   LeaveRequest[]
+  payrollRecords  PayrollRecord[]
+
+  // Branch assignment (Darajani)
+  branchId        String?
+  branch          Branch?  @relation(fields: [branchId], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  @@index([organizationId])
+  @@index([branchId])
+}
+
+enum StaffType {
+  EMPLOYEE
+  VOLUNTEER
+  COACH
+  MENTOR
+  INTERN
+  CONSULTANT
+}
+
+// ════════════════════════════════════════════════════════════════════
+// PEOPLE — PARTNERS
+// ════════════════════════════════════════════════════════════════════
+
+model Partnership {
+  id              String   @id @default(cuid())
+  organizationId  String                            // the org that owns this partnership
+  organization    Organization @relation("OrgPartnerships", fields: [organizationId], references: [id])
+
+  partnerName     String                            // "Agape in Action", "Christian Family"
+  partnerType     PartnerType
+  contactName     String?
+  contactEmail    String?
+  contactPhone    String?
+  website         String?
+  description     String?
+  active          Boolean  @default(true)
+  startDate       DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  @@index([organizationId])
+}
+
+enum PartnerType {
+  STRATEGIC
+  COMMUNITY
+  SUPPORTING
+  OTHER
+}
+
+// ════════════════════════════════════════════════════════════════════
+// BRANCHES — training/operational locations within an org (Darajani)
+// ════════════════════════════════════════════════════════════════════
+
+model Branch {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name            String                    // "Darajani Elite"
+  slug            String                    // "darajani-elite"
+  description     String?
+  location        String?                   // "Mwiki, Nairobi Kasarani"
+  county          String?
+  isMain          Boolean  @default(false)
+  active          Boolean  @default(true)
+
+  // Branch-level branding (overrides org theme on branch pages)
+  primaryColor    String   @default("#16A34A")
+  accentColor     String   @default("#FACC15")
+
+  // Members of this branch
+  beneficiaries   Beneficiary[]
+  staff           StaffVolunteer[]
+  sessions        TrainingSession[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// TRAINING SESSIONS & ROLLCALL (Darajani branches)
+// ════════════════════════════════════════════════════════════════════
+
+model TrainingSession {
+  id            String   @id @default(cuid())
+  branchId      String
+  branch        Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  date          DateTime
+  sessionType   String   @default("TRAINING")  // TRAINING | MATCH | FITNESS | CAMP | ASSESSMENT
+  notes         String?
+  capturedById  String?
+
+  createdAt     DateTime @default(now())
+
+  attendances   TrainingAttendance[]
+
+  @@index([branchId])
+  @@index([date])
+}
+
+model TrainingAttendance {
+  id            String   @id @default(cuid())
+  sessionId     String
+  session       TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  beneficiaryId String
+  beneficiary   Beneficiary @relation(fields: [beneficiaryId], references: [id])
+
+  present       Boolean  @default(true)
+  notes         String?
+
+  @@unique([sessionId, beneficiaryId])
+  @@index([sessionId])
+  @@index([beneficiaryId])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// PROGRAMS
+// ════════════════════════════════════════════════════════════════════
+
+model Program {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+
+  type            ProgramType
+  name            String
+  description     String?
+  status          ProgramStatus @default(ACTIVE)
+  startDate       DateTime?
+  endDate         DateTime?
+
+  // Enrolments
+  enrolments      ProgramEnrolment[]
+
+  // Outcomes
+  outcomes        Outcome[]
+
+  // Fund allocations into / out of this programme
+  allocationsFrom FundAllocation[] @relation("AllocationSourceProgram")
+  allocationsTo   FundAllocation[] @relation("AllocationDestinationProgram")
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  @@index([organizationId])
+  @@index([type])
+}
+
+enum ProgramType {
+  EDUCATION
+  LIFE_PROGRAM       // A Meal A Day, Clean Water
+  SPORTS_DARAJANI
+  SPORTS_OUTREACH    // Lerato sports outreach (non-academy)
+  MENTORSHIP
+  COMMUNITY_DEV
+  AGAPE_MISSION
+  OTHER
+}
+
+enum ProgramStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+model ProgramEnrolment {
+  id              String   @id @default(cuid())
+  programId       String
+  program         Program  @relation(fields: [programId], references: [id])
+  beneficiaryId   String
+  beneficiary     Beneficiary @relation(fields: [beneficiaryId], references: [id])
+  enrolledAt      DateTime @default(now())
+  exitedAt        DateTime?
+  status          String   @default("ACTIVE")
+  notes           String?
+
+  attendances     Attendance[]
+
+  @@unique([programId, beneficiaryId])
+  @@index([programId])
+  @@index([beneficiaryId])
+}
+
+model Attendance {
+  id              String   @id @default(cuid())
+  enrolmentId     String
+  enrolment       ProgramEnrolment @relation(fields: [enrolmentId], references: [id])
+  beneficiaryId   String
+  beneficiary     Beneficiary @relation(fields: [beneficiaryId], references: [id])
+  date            DateTime
+  present         Boolean
+  notes           String?
+  capturedBy      String?              // staff/volunteer user ID
+  syncedAt        DateTime @default(now())  // for offline-first mobile
+
+  @@index([enrolmentId])
+  @@index([beneficiaryId])
+  @@index([date])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// AGAPE — MISSIONS (international trips, delegations, visa logistics)
+// ════════════════════════════════════════════════════════════════════
+
+model Mission {
+  id              String   @id @default(cuid())
+  organizationId  String                            // typically Agape
+  organization    Organization @relation(fields: [organizationId], references: [id])
+
+  name            String                            // "World Cup Engagement Programme 2026"
+  type            MissionType
+  destination     String                            // "Senegal, Nigeria"
+  countries       String[]
+  departureDate   DateTime?
+  returnDate      DateTime?
+  status          MissionStatus @default(PLANNING)
+  description     String?
+  budget          Decimal? @db.Decimal(12, 2)
+
+  delegates       MissionDelegate[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+enum MissionType {
+  EVANGELISM
+  HUMANITARIAN
+  ENGAGEMENT_PROGRAMME      // e.g. World Cup Engagement
+  CAPACITY_BUILDING
+  PARTNERSHIP_VISIT
+  OTHER
+}
+
+enum MissionStatus {
+  PLANNING
+  VISA_PROCESSING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  POSTPONED
+  CANCELLED
+}
+
+model MissionDelegate {
+  id              String   @id @default(cuid())
+  missionId       String
+  mission         Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  // Delegate identity (could be staff, volunteer, or beneficiary)
+  firstName       String
+  lastName        String
+  email           String?
+  phone           String?
+  role            String?                           // "Delegation Lead", "Accompanying"
+
+  // Travel documents
+  passportNo      String?
+  passportExpiry  DateTime?
+  passportImageUrl String?
+  visaStatus      VisaStatus @default(NOT_STARTED)
+  visaIssuedAt    DateTime?
+  ticketRef       String?
+
+  notes           String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([missionId])
+}
+
+enum VisaStatus {
+  NOT_STARTED
+  APPLIED
+  PROCESSING
+  APPROVED
+  REJECTED
+  EXEMPT          // for visa-free destinations
+}
+
+// ════════════════════════════════════════════════════════════════════
+// OPERATIONS — EVENTS, FINANCE, COMMUNICATION
+// ════════════════════════════════════════════════════════════════════
+
+model Event {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+
+  name            String
+  type            EventType
+  description     String?
+  venue           String?
+  startsAt        DateTime
+  endsAt          DateTime?
+  status          EventStatus @default(SCHEDULED)
+  registrationOpen Boolean @default(false)
+  capacity        Int?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  @@index([organizationId])
+  @@index([startsAt])
+}
+
+enum EventType {
+  TOURNAMENT
+  FUNDRAISER
+  TRAINING_CAMP
+  MISSION_DEPARTURE
+  COMMUNITY_DAY
+  BOARD_MEETING
+  OTHER
+}
+
+enum EventStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  POSTPONED
+  CANCELLED
+}
+
+model Transaction {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+
+  type            TxType
+  amount          Decimal  @db.Decimal(12, 2)
+  currency        String   @default("KES")
+  description     String
+  category        String?
+  reference       String?                           // M-PESA receipt, cheque #, etc.
+  occurredAt      DateTime
+  reconciledAt    DateTime?
+  reconciledById  String?
+
+  approvalStatus  String   @default("POSTED")       // POSTED | PENDING_APPROVAL | REJECTED
+  createdById     String?
+
+  donationId      String?
+
+  // Account routing — double-entry
+  fromAccountId   String?
+  fromAccount     Account?  @relation("TxFromAccount", fields: [fromAccountId], references: [id])
+  toAccountId     String?
+  toAccount       Account?  @relation("TxToAccount", fields: [toAccountId], references: [id])
+
+  // Extra context
+  payee           String?   // for EXPENSE: who was paid
+  budgetLine      String?   // e.g., "5020-TRAVEL"
+  tags            String[]  @default([])
+
+  // Journal entry (auto-created on post)
+  journalEntry    JournalEntry?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([occurredAt])
+  @@index([approvalStatus])
+  @@index([fromAccountId])
+  @@index([toAccountId])
+}
+
+enum TxType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CHART OF ACCOUNTS
+// ════════════════════════════════════════════════════════════════════
+//
+// Combines NGO fund accounting with institutional double-entry principles.
+// ASSET / LIABILITY / EQUITY are balance-sheet accounts (track balances).
+// INCOME / EXPENSE are P&L accounts (measure flows over a period).
+//
+// Code ranges:   1000-1999 = Assets   2000-2999 = Liabilities
+//                3000-3999 = Equity   4000-4999 = Income   5000-5999 = Expense
+
+model Account {
+  id             String      @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  code           String      // e.g., "1010"
+  name           String      // e.g., "M-PESA Float"
+  type           AccountType
+  subtype        String?     // CASH | BANK | MPESA | RECEIVABLE | PAYABLE | RESTRICTED | UNRESTRICTED
+  description    String?
+  currency       String      @default("KES")
+
+  // Running balance — updated when transactions are posted
+  // For ASSET: positive = funds available
+  // For LIABILITY: positive = amount owed
+  // For INCOME/EXPENSE: tracks period total (reset per financial year)
+  balance        Decimal     @default(0) @db.Decimal(14, 2)
+
+  // Account tree (sub-accounts, e.g. "1020 Equity Bank" under "1000 Cash & Equivalents")
+  parentId       String?
+  parent         Account?    @relation("AccountTree", fields: [parentId], references: [id])
+  children       Account[]   @relation("AccountTree")
+
+  // NGO-specific flags
+  isRestricted   Boolean     @default(false)  // donor-restricted fund
+  restrictionNote String?                     // e.g., "Agape WC2026 Travel Fund"
+  isSystem       Boolean     @default(false)  // seeded — cannot delete
+  active         Boolean     @default(true)
+
+  // Linked transactions
+  outgoingTx     Transaction[] @relation("TxFromAccount")
+  incomingTx     Transaction[] @relation("TxToAccount")
+  journalLines   JournalLine[]
+  budgets        Budget[]
+
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@index([type])
+  @@index([active])
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+}
+
+model Communication {
+  id              String   @id @default(cuid())
+  organizationId  String
+  type            CommType
+  subject         String?
+  body            String
+  sentAt          DateTime?
+  recipientCount  Int      @default(0)
+  successCount    Int      @default(0)
+  failureCount    Int      @default(0)
+  status          String   @default("DRAFT")
+  scheduledFor    DateTime?
+  createdBy       String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([sentAt])
+}
+
+enum CommType {
+  SMS
+  EMAIL
+  WHATSAPP
+  PUSH_NOTIFICATION
+  INTERNAL_ANNOUNCEMENT
+}
+
+// ════════════════════════════════════════════════════════════════════
+// IMPACT — OUTCOMES, REPORTS, FEEDBACK
+// ════════════════════════════════════════════════════════════════════
+
+model Outcome {
+  id              String   @id @default(cuid())
+  programId       String?
+  program         Program? @relation(fields: [programId], references: [id])
+  beneficiaryId   String?
+  beneficiary     Beneficiary? @relation(fields: [beneficiaryId], references: [id])
+  metricName      String                            // "Scholarship awarded", "Match won", "Meal served"
+  metricValue     Decimal? @db.Decimal(12, 2)
+  unit            String?                           // "KES", "meals", "matches"
+  recordedAt      DateTime @default(now())
+  recordedBy      String?
+  notes           String?
+
+  @@index([programId])
+  @@index([beneficiaryId])
+  @@index([recordedAt])
+}
+
+model Report {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  type            ReportType
+  title           String
+  department      String?   // FINANCE | HR | PROCUREMENT | PROGRAMMES | ADMIN
+  periodStart     DateTime
+  periodEnd       DateTime
+  generatedAt     DateTime @default(now())
+  generatedBy     String?
+  fileUrl         String?
+  recipients      String[]
+  status          String   @default("DRAFT")
+
+  @@index([organizationId])
+  @@index([type])
+}
+
+enum ReportType {
+  FIFA_COMPLIANCE
+  FKF_COMPLIANCE
+  BOARD_QUARTERLY
+  DONOR_ANNUAL
+  GRANT_FUNDER
+  REGULATOR
+  INTERNAL
+  FINANCE_STATEMENT
+  HR_PAYROLL
+  PROCUREMENT_SUMMARY
+  ASSET_REGISTER
+  PROGRAMME_IMPACT
+}
+
+model SurveyResponse {
+  id              String   @id @default(cuid())
+  beneficiaryId   String?
+  beneficiary     Beneficiary? @relation(fields: [beneficiaryId], references: [id])
+  surveyName      String
+  responseData    Json
+  submittedAt     DateTime @default(now())
+  channel         String?
+
+  @@index([beneficiaryId])
+  @@index([surveyName])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// AUDIT TRAIL — every mutation logged
+// ════════════════════════════════════════════════════════════════════
+
+model AuditLog {
+  id              String   @id @default(cuid())
+  organizationId  String?
+  organization    Organization? @relation(fields: [organizationId], references: [id])
+  actorId         String?
+  actor           User?    @relation("AuditActor", fields: [actorId], references: [id])
+
+  action          String                            // "CREATE", "UPDATE", "DELETE", "LOGIN", "EXPORT"
+  entity          String                            // "Beneficiary", "Donation", "Mission"
+  entityId        String?
+  before          Json?
+  after           Json?
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([actorId])
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// FUND ALLOCATIONS & APPROVALS
+// ════════════════════════════════════════════════════════════════════
+//
+// FundAllocation represents a movement of funds:
+//   - between organizations (e.g. Lerato → Darajani)
+//   - between programmes within an organization
+//   - from the main pool to a specific project
+//
+// Approvals are stacked: based on amount thresholds, 1-3 approvers must
+// sign off before the allocation can be executed (which creates the
+// matching Transaction records in both source and destination).
+
+model FundAllocation {
+  id              String   @id @default(cuid())
+
+  // Origin and destination
+  sourceOrgId     String                               // org the money leaves
+  sourceOrg       Organization @relation("AllocationSource", fields: [sourceOrgId], references: [id])
+  destinationOrgId String                              // org the money arrives at (may be same as source)
+  destinationOrg  Organization @relation("AllocationDestination", fields: [destinationOrgId], references: [id])
+
+  // Optional programme scoping
+  sourceProgramId      String?
+  sourceProgram        Program? @relation("AllocationSourceProgram", fields: [sourceProgramId], references: [id])
+  destinationProgramId String?
+  destinationProgram   Program? @relation("AllocationDestinationProgram", fields: [destinationProgramId], references: [id])
+
+  // Money
+  amount          Decimal  @db.Decimal(12, 2)
+  currency        String   @default("KES")
+
+  // Reason and metadata
+  title           String                               // short description
+  description     String?                              // longer context
+  category        String?                              // e.g., "Equipment", "Travel", "Programme top-up"
+
+  // Workflow
+  status          AllocationStatus @default(DRAFT)
+  requiredApprovers Int    @default(1)                 // calculated from rule at creation
+  approvals       Approval[]
+
+  // Lifecycle
+  createdById     String
+  createdAt       DateTime @default(now())
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  executedAt      DateTime?
+  executedById    String?
+
+  // Linked transactions (debit on source, credit on destination)
+  sourceTransactionId      String?
+  destinationTransactionId String?
+
+  @@index([sourceOrgId])
+  @@index([destinationOrgId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum AllocationStatus {
+  DRAFT                  // creator still editing
+  PENDING_APPROVAL       // submitted, waiting on approver(s)
+  APPROVED               // all approvals collected, ready to execute
+  REJECTED               // an approver said no — terminal
+  EXECUTED               // funds actually moved (transactions created)
+  CANCELLED              // creator cancelled
+}
+
+model Approval {
+  id              String   @id @default(cuid())
+  allocationId    String
+  allocation      FundAllocation @relation(fields: [allocationId], references: [id], onDelete: Cascade)
+
+  // Approver
+  approverId      String                               // User ID
+  approverRole    Role                                 // role at time of approval (snapshot)
+  level           Int                                  // 1, 2, 3 — order in the stack
+
+  // Decision
+  decision        ApprovalDecision?                    // null = pending
+  decidedAt       DateTime?
+  notes           String?
+
+  // Audit
+  createdAt       DateTime @default(now())
+
+  @@index([allocationId])
+  @@index([approverId])
+  @@index([decision])
+}
+
+enum ApprovalDecision {
+  APPROVED
+  REJECTED
+}
+
+// Defines how many approvals are needed at which threshold per org.
+// Example seed: { thresholdKes: 0,      approvers: 1, role: FINANCE_LEAD }
+//               { thresholdKes: 50000,  approvers: 2, role: ADMIN }
+//               { thresholdKes: 250000, approvers: 3, role: BOARD_MEMBER }
+model ApprovalRule {
+  id                String   @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation("OrgApprovalRules", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  thresholdAmount   Decimal  @db.Decimal(12, 2)
+  currency          String   @default("KES")
+  requiredApprovers Int
+  requiredRoles     Role[]
+  active            Boolean  @default(true)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([thresholdAmount])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// DOUBLE-ENTRY JOURNAL ENTRIES
+// ════════════════════════════════════════════════════════════════════
+
+model JournalEntry {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  transactionId  String?      @unique
+  transaction    Transaction? @relation(fields: [transactionId], references: [id])
+
+  entryNumber    String
+  date           DateTime
+  memo           String
+  lines          JournalLine[]
+
+  postedById     String?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([date])
+}
+
+model JournalLine {
+  id          String        @id @default(cuid())
+  journalId   String
+  journal     JournalEntry  @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  accountId   String?
+  account     Account?      @relation(fields: [accountId], references: [id])
+  description String?
+  debit       Decimal       @default(0) @db.Decimal(14, 2)
+  credit      Decimal       @default(0) @db.Decimal(14, 2)
+
+  @@index([journalId])
+  @@index([accountId])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// FIXED ASSET REGISTER
+// ════════════════════════════════════════════════════════════════════
+
+model FixedAsset {
+  id             String           @id @default(cuid())
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  assetNumber    String
+  name           String
+  category       AssetCategory
+  description    String?
+  purchaseDate   DateTime
+  purchaseCost   Decimal          @db.Decimal(14, 2)
+  currency       String           @default("KES")
+  supplier       String?
+  serialNumber   String?
+  location       String?
+  condition      AssetCondition   @default(GOOD)
+  status         AssetStatus      @default(ACTIVE)
+
+  depreciationMethod DepreciationMethod @default(STRAIGHT_LINE)
+  usefulLifeYears    Int?
+  salvageValue       Decimal          @default(0) @db.Decimal(14, 2)
+  currentValue       Decimal          @db.Decimal(14, 2)
+  lastDepreciatedAt  DateTime?
+
+  accountId      String?
+  notes          String?
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, assetNumber])
+  @@index([organizationId])
+  @@index([category])
+  @@index([status])
+}
+
+enum AssetCategory {
+  LAND_BUILDING
+  VEHICLE
+  EQUIPMENT
+  FURNITURE
+  IT_EQUIPMENT
+  SPORTS_EQUIPMENT
+  OTHER
+}
+
+enum AssetCondition {
+  EXCELLENT
+  GOOD
+  FAIR
+  POOR
+  DAMAGED
+}
+
+enum AssetStatus {
+  ACTIVE
+  UNDER_REPAIR
+  DISPOSED
+  WRITTEN_OFF
+}
+
+enum DepreciationMethod {
+  STRAIGHT_LINE
+  REDUCING_BALANCE
+  NONE
+}
+
+// ════════════════════════════════════════════════════════════════════
+// BUDGET MANAGEMENT
+// ════════════════════════════════════════════════════════════════════
+
+model Budget {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name           String        // "Staff Travel FY2026"
+  code           String?       // matches Transaction.budgetLine e.g. "5020-TRAVEL"
+  accountId      String?       // linked expense / income account
+  account        Account?      @relation(fields: [accountId], references: [id])
+
+  fiscalYear     Int           // 2026
+  startDate      DateTime
+  endDate        DateTime
+
+  allocatedAmount Decimal      @db.Decimal(14, 2)
+  currency       String        @default("KES")
+  category       String?       // "Programme" | "Operations" | "Admin"
+  description    String?
+  active         Boolean       @default(true)
+  createdById    String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([fiscalYear])
+  @@index([code])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// HUMAN RESOURCES
+// ════════════════════════════════════════════════════════════════════
+
+model LeaveRequest {
+  id             String         @id @default(cuid())
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  staffId        String
+  staff          StaffVolunteer @relation(fields: [staffId], references: [id])
+
+  leaveType      LeaveType
+  startDate      DateTime
+  endDate        DateTime
+  days           Int
+  reason         String?
+  status         LeaveStatus    @default(PENDING)
+  approvedById   String?
+  approvedAt     DateTime?
+  rejectedReason String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([staffId])
+  @@index([status])
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  MATERNITY
+  PATERNITY
+  COMPASSIONATE
+  STUDY
+  UNPAID
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model PayrollRecord {
+  id              String         @id @default(cuid())
+  organizationId  String
+  organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  staffId         String
+  staff           StaffVolunteer @relation(fields: [staffId], references: [id])
+
+  period          String         // "2026-06"
+  grossSalary     Decimal        @db.Decimal(14, 2)
+  nhif            Decimal        @default(0) @db.Decimal(14, 2)
+  nssf            Decimal        @default(0) @db.Decimal(14, 2)
+  paye            Decimal        @default(0) @db.Decimal(14, 2)
+  otherDeductions Decimal        @default(0) @db.Decimal(14, 2)
+  netSalary       Decimal        @db.Decimal(14, 2)
+  currency        String         @default("KES")
+  status          PayrollStatus  @default(DRAFT)
+  paidAt          DateTime?
+  paidById        String?
+  notes           String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([staffId, period])
+  @@index([organizationId])
+  @@index([staffId])
+  @@index([period])
+  @@index([status])
+}
+
+enum PayrollStatus {
+  DRAFT
+  APPROVED
+  PAID
+}
+
+// ════════════════════════════════════════════════════════════════════
+// PROCUREMENT
+// ════════════════════════════════════════════════════════════════════
+
+model Vendor {
+  id             String         @id @default(cuid())
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name           String
+  contactName    String?
+  email          String?
+  phone          String?
+  address        String?
+  county         String?
+  category       VendorCategory
+  taxPin         String?
+  bankName       String?
+  bankAccount    String?
+  bankBranch     String?
+  rating         Int?
+  active         Boolean        @default(true)
+  notes          String?
+
+  purchaseOrders PurchaseOrder[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  @@index([organizationId])
+  @@index([category])
+}
+
+enum VendorCategory {
+  SUPPLIES_STATIONERY
+  IT_TECHNOLOGY
+  EQUIPMENT
+  TRANSPORT_LOGISTICS
+  CATERING_EVENTS
+  PROFESSIONAL_SERVICES
+  UTILITIES
+  RENT_FACILITIES
+  MEDIA_COMMUNICATIONS
+  OTHER
+}
+
+model PurchaseOrder {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  poNumber       String
+  vendorId       String
+  vendor         Vendor       @relation(fields: [vendorId], references: [id])
+  requestedById  String
+  department     String?
+  title          String
+  description    String?
+  lineItems      Json         // [{description, qty, unitPrice, amount}]
+  subtotal       Decimal      @db.Decimal(14, 2)
+  taxAmount      Decimal      @default(0) @db.Decimal(14, 2)
+  total          Decimal      @db.Decimal(14, 2)
+  currency       String       @default("KES")
+  requiredBy     DateTime?
+  status         POStatus     @default(DRAFT)
+  approvedById   String?
+  approvedAt     DateTime?
+  receivedAt     DateTime?
+  fromAccountId  String?
+  notes          String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, poNumber])
+  @@index([organizationId])
+  @@index([vendorId])
+  @@index([status])
+}
+
+enum POStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  ORDERED
+  RECEIVED
+  CANCELLED
+}

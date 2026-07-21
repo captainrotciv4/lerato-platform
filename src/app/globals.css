@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Default brand — overridden per-tenant via inline style on the <html> tag */
+    --brand-primary: #1E40AF;
+    --brand-secondary: #231F20;
+    --brand-accent: #ED1C24;
+
+    --bg: #FFFFFF;
+    --bg-muted: #F9FAFB;
+    --fg: #111827;
+    --fg-muted: #6B7280;
+    --border: #E5E7EB;
+  }
+
+  .dark {
+    --bg: #0A0A0A;
+    --bg-muted: #161616;
+    --fg: #F5F5F5;
+    --fg-muted: #A1A1AA;
+    --border: #2A2A2A;
+  }
+
+  body {
+    @apply bg-[var(--bg)] text-[var(--fg)] antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Form defaults */
+  input, textarea, select {
+    @apply rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] focus:ring-offset-1;
+  }
+  label {
+    @apply text-sm font-medium text-[var(--fg)];
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-[var(--brand-primary)] text-white hover:opacity-90;
+  }
+  .btn-secondary {
+    @apply btn bg-[var(--bg-muted)] text-[var(--fg)] hover:bg-[var(--border)];
+  }
+  .btn-danger {
+    @apply btn bg-[var(--brand-accent)] text-white hover:opacity-90;
+  }
+
+  .card {
+    @apply rounded-xl border border-[var(--border)] bg-white p-6 shadow-sm transition-shadow duration-150;
+  }
+
+  .card:hover {
+    @apply shadow-md;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold;
+  }
+}
