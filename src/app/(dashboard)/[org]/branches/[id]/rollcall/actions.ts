@@ -60,3 +60,48 @@ export async function createRollcall(
   revalidatePath(`/${orgSlug}/branches/${branchId}`);
   redirect(`/${orgSlug}/branches/${branchId}`);
 }
+
+/** Sync an offline-queued rollcall draft — same logic but no redirect. */
+export async function syncRollcallRecord(
+  orgSlug: string,
+  branchId: string,
+  payload: {
+    date: string;
+    sessionType: string;
+    notes: string;
+    allPlayerIds: string[];
+    presentPlayerIds: string[];
+  },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const ctx = await requireTenant(orgSlug);
+
+    const session = await dbRetry(() =>
+      prisma.trainingSession.create({
+        data: {
+          branchId,
+          date:        new Date(payload.date),
+          sessionType: payload.sessionType,
+          notes:       payload.notes || null,
+          capturedById: ctx.user.id,
+        },
+      })
+    );
+
+    const presentSet = new Set(payload.presentPlayerIds);
+    await Promise.all(
+      payload.allPlayerIds.map((bId) =>
+        dbRetry(() =>
+          prisma.trainingAttendance.create({
+            data: { sessionId: session.id, beneficiaryId: bId, present: presentSet.has(bId) },
+          })
+        )
+      )
+    );
+
+    revalidatePath(`/${orgSlug}/branches/${branchId}`);
+    return { ok: true };
+  } catch (err: any) {
+    return { ok: false, error: err?.message ?? "Sync failed" };
+  }
+}

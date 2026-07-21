@@ -8,6 +8,7 @@ import {
   BarChart3, ShieldCheck, Home, ArrowLeftRight, MapPin,
   Users2, CalendarMinus, Banknote, ShoppingCart, Building2, ClipboardList,
   BookOpen, Scale, BarChart2, GitMerge, Settings, Landmark, Upload, TrendingDown,
+  CloudUpload,
 } from "lucide-react";
 
 const ICONS: Record<string, React.ElementType> = {
@@ -15,6 +16,7 @@ const ICONS: Record<string, React.ElementType> = {
   BarChart3, ShieldCheck, Home, ArrowLeftRight, MapPin,
   Users2, CalendarMinus, Banknote, ShoppingCart, Building2, ClipboardList,
   BookOpen, Scale, BarChart2, GitMerge, Settings, Landmark, Upload, TrendingDown,
+  CloudUpload,
 };
 
 export type SerializableNavItem =

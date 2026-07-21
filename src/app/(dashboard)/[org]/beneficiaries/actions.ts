@@ -138,6 +138,94 @@ export async function createBeneficiary(orgSlug: string, formData: FormData): Pr
   redirect(`/${orgSlug}/beneficiaries/${beneficiary.id}`);
 }
 
+/** Sync an offline-queued beneficiary draft — same logic as createBeneficiary but no redirect. */
+export async function syncBeneficiaryRecord(
+  orgSlug: string,
+  payload: Record<string, unknown>,
+): Promise<{ ok: true; admissionNo: string } | { ok: false; error: string }> {
+  const ctx = await requireTenant(orgSlug);
+
+  if (!can(ctx.role, ctx.permissions, PERMISSIONS.BENEFICIARY_WRITE)) {
+    return { ok: false, error: "Permission denied." };
+  }
+
+  const parsed = BeneficiarySchema.safeParse(payload);
+  if (!parsed.success) {
+    const msgs = Object.values(parsed.error.flatten().fieldErrors).flat();
+    return { ok: false, error: msgs.join("; ") || "Validation failed." };
+  }
+  const data = parsed.data;
+
+  const dupeChecks: { birthCertNo?: string; nationalId?: string }[] = [];
+  if (data.birthCertNo) dupeChecks.push({ birthCertNo: data.birthCertNo });
+  if (data.nationalId)  dupeChecks.push({ nationalId:  data.nationalId });
+  if (dupeChecks.length > 0) {
+    const existing = await dbRetry(() =>
+      prisma.beneficiary.findFirst({
+        where: { organizationId: ctx.organization.id, deletedAt: null, OR: dupeChecks },
+        select: { firstName: true, lastName: true, admissionNo: true, birthCertNo: true, nationalId: true },
+      })
+    );
+    if (existing) {
+      const field = existing.birthCertNo === data.birthCertNo
+        ? `birth certificate ${data.birthCertNo}`
+        : `national ID ${data.nationalId}`;
+      const ref = existing.admissionNo ? ` (${existing.admissionNo})` : "";
+      return { ok: false, error: `Duplicate: ${existing.firstName} ${existing.lastName}${ref} already registered with the same ${field}.` };
+    }
+  }
+
+  const prefix      = orgSlug.slice(0, 3).toUpperCase();
+  const yr          = new Date().getFullYear().toString().slice(2);
+  const count       = await dbRetry(() => prisma.beneficiary.count({ where: { organizationId: ctx.organization.id } }));
+  const admissionNo = `${prefix}${yr}-${String(count + 1).padStart(4, "0")}`;
+
+  const beneficiary = await dbRetry(() => prisma.beneficiary.create({
+    data: {
+      organizationId: ctx.organization.id,
+      admissionNo,
+      firstName:            data.firstName,
+      middleName:           data.middleName   || null,
+      lastName:             data.lastName,
+      dateOfBirth:          new Date(data.dateOfBirth),
+      gender:               data.gender,
+      nationalId:           data.nationalId   || null,
+      birthCertNo:          data.birthCertNo  || null,
+      phone:                data.phone        || null,
+      email:                data.email        || null,
+      address:              data.address      || null,
+      county:               data.county       || null,
+      guardianName:         data.guardianName || null,
+      guardianPhone:        data.guardianPhone || null,
+      guardianEmail:        data.guardianEmail || null,
+      guardianRelationship: data.guardianRelationship || null,
+    },
+  }));
+
+  if (data.isAthlete) {
+    await dbRetry(() => prisma.athleteProfile.create({
+      data: {
+        beneficiaryId: beneficiary.id,
+        position:      data.position     || null,
+        preferredFoot: (data.preferredFoot as any) || null,
+        currentClub:   data.currentClub  || null,
+      },
+    }));
+  }
+  if (data.isStudent) {
+    await dbRetry(() => prisma.studentProfile.create({
+      data: {
+        beneficiaryId: beneficiary.id,
+        school: data.school || null,
+        grade:  data.grade  || null,
+      },
+    }));
+  }
+
+  revalidatePath(`/${orgSlug}/beneficiaries`);
+  return { ok: true, admissionNo };
+}
+
 /** Soft-delete a beneficiary. */
 export async function deleteBeneficiary(orgSlug: string, beneficiaryId: string) {
   const ctx = await requireTenant(orgSlug);

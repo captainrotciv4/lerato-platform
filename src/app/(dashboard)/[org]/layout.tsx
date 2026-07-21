@@ -5,6 +5,7 @@ import { signOut } from "@/lib/auth";
 import { initials, cn } from "@/lib/utils";
 import { LogOut } from "lucide-react";
 import { SidebarNavLinks, type SerializableNavItem } from "@/components/sidebar-nav";
+import { OfflineBadge } from "@/components/offline-badge";
 
 type NavItem =
   | { section: string }
@@ -44,6 +45,7 @@ const NAV_FOUNDATION: NavItem[] = [
   { href: "/reports",   label: "Reports",    iconName: "BarChart3",     permission: PERMISSIONS.REPORT_READ },
   { section: "Admin" },
   { href: "/settings",  label: "Settings",   iconName: "Settings",      permission: PERMISSIONS.ORG_SETTINGS },
+  { href: "/sync",      label: "Offline Sync", iconName: "CloudUpload" },
 ];
 
 // ── Darajani Sports Academy ───────────────────────────────────────────────────
@@ -74,6 +76,7 @@ const NAV_ACADEMY: NavItem[] = [
   { href: "/communications",label: "Communications",  iconName: "MessageSquare",permission: PERMISSIONS.COMM_SEND },
   { section: "Admin" },
   { href: "/settings",      label: "Settings",        iconName: "Settings",    permission: PERMISSIONS.ORG_SETTINGS },
+  { href: "/sync",          label: "Offline Sync",    iconName: "CloudUpload" },
 ];
 
 // ── Agape in Action (Mission) ─────────────────────────────────────────────────
@@ -105,6 +108,7 @@ const NAV_MISSION: NavItem[] = [
   { href: "/reports",        label: "Reports",         iconName: "BarChart3",     permission: PERMISSIONS.REPORT_READ },
   { section: "Admin" },
   { href: "/settings",       label: "Settings",        iconName: "Settings",      permission: PERMISSIONS.ORG_SETTINGS },
+  { href: "/sync",           label: "Offline Sync",    iconName: "CloudUpload" },
 ];
 
 const NAV_BY_TYPE: Partial<Record<string, NavItem[]>> = {
@@ -210,6 +214,7 @@ export default async function OrgDashboardLayout({
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--bg)] px-6">
           <OrgSwitcher current={ctx.organization.slug} orgs={accessibleOrgs} />
           <div className="flex items-center gap-2">
+            <OfflineBadge org={ctx.organization.slug} />
             <span className="rounded-full border border-[var(--border)] bg-[var(--bg-muted)] px-2.5 py-0.5 text-[11px] font-medium capitalize text-[var(--fg-muted)]">
               {ctx.role.replace("_", " ").toLowerCase()}
             </span>
