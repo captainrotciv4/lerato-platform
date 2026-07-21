@@ -119,6 +119,7 @@ model User {
   phone           String?  @unique
   phoneVerified   DateTime?
   name            String
+  title           String?                 // job title e.g. "CEO", "Finance Officer"
   avatarUrl       String?
   hashedPassword  String?                 // null if passwordless
   active          Boolean  @default(true)

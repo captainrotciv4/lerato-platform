@@ -189,7 +189,7 @@ export default async function OrgDashboardLayout({
             <div className="min-w-0 flex-1">
               <div className="truncate text-xs font-semibold text-[var(--fg)]">{ctx.user.name}</div>
               <div className="truncate text-[10px] capitalize text-[var(--fg-muted)]">
-                {ctx.role.replace("_", " ").toLowerCase()}
+                {ctx.user.title ?? ctx.role.replace("_", " ").toLowerCase()}
               </div>
             </div>
             <form
