@@ -58,12 +58,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!valid) return null;
 
-        await dbRetry(() =>
-          prisma.user.update({
-            where: { id: user.id },
-            data: { lastSeenAt: new Date() },
-          })
-        );
+        // Fire-and-forget: update lastSeenAt + opportunistically rehash to cost 10
+        // (passwords were originally hashed at cost 12 — this gradually lowers it)
+        (async () => {
+          const updates: { lastSeenAt: Date; hashedPassword?: string } = { lastSeenAt: new Date() };
+          const costMatch = user.hashedPassword.match(/^\$2[ab]\$(\d+)\$/);
+          const currentCost = costMatch ? parseInt(costMatch[1], 10) : 12;
+          if (currentCost > 10) {
+            const { hash: bcryptHash } = await import("bcryptjs");
+            updates.hashedPassword = await bcryptHash(parsed.data.password, 10);
+          }
+          prisma.user.update({ where: { id: user.id }, data: updates }).catch(() => null);
+        })();
 
         return {
           id: user.id,
