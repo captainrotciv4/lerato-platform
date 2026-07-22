@@ -132,9 +132,11 @@ model User {
   memberships     Membership[]
 
   // Activity
-  sessions        Session[]
-  auditLogs       AuditLog[]              @relation("AuditActor")
-  scoutReports    ScoutReport[]
+  sessions            Session[]
+  auditLogs           AuditLog[]              @relation("AuditActor")
+  scoutReports        ScoutReport[]
+  loginLogs           LoginLog[]
+  passwordResetTokens PasswordResetToken[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   lastSeenAt      DateTime?
@@ -1558,4 +1560,35 @@ model MediaAsset {
 enum MediaType {
   PHOTO
   VIDEO
+}
+
+// ════════════════════════════════════════════════════════════════════
+// AUTH — login audit logs & password reset tokens
+// ════════════════════════════════════════════════════════════════════
+
+model LoginLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  email      String
+  success    Boolean
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
 }

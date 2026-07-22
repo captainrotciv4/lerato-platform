@@ -9,7 +9,6 @@
  */
 
 import { cache } from "react";
-import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -23,26 +22,16 @@ export type TenantContext = {
   branchId: string | null;
 };
 
-// ── Session (JWT decode — already fast, but deduplicate within the render) ──
+// ── Session — deduplicated within each render pass ───────────────────────────
 const getSession = cache(() => auth());
 
-// ── Memberships: persist for 30 s, tagged for targeted invalidation ──────────
-function buildMembershipFetcher(userId: string) {
-  return unstable_cache(
-    () =>
-      prisma.membership.findMany({
-        where: { userId, active: true, revokedAt: null },
-        include: { user: true, organization: true, branch: true },
-        orderBy: { organization: { name: "asc" } },
-      }),
-    [`memberships-${userId}`],
-    { revalidate: 30, tags: [`user-memberships-${userId}`] }
-  );
-}
-
-// Within a request, share the same unstable_cache call across all components.
+// ── Memberships — one DB hit per request, never cached across users ───────────
 const getUserMemberships = cache((userId: string) =>
-  buildMembershipFetcher(userId)()
+  prisma.membership.findMany({
+    where: { userId, active: true, revokedAt: null },
+    include: { user: true, organization: true, branch: true },
+    orderBy: { organization: { name: "asc" } },
+  })
 );
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -42,9 +42,10 @@ const NAV_FOUNDATION: NavItem[] = [
   { href: "/reports",   label: "Reports",         iconName: "BarChart3",     permission: PERMISSIONS.REPORT_READ },
   { href: "/media",     label: "Media Library",   iconName: "Images" },
   { section: "Admin" },
-  { href: "/settings",      label: "Settings",   iconName: "Settings",    permission: PERMISSIONS.ORG_SETTINGS },
-  { href: "/settings/team", label: "Team",        iconName: "UsersRound",  permission: PERMISSIONS.ORG_SETTINGS },
-  { href: "/sync",          label: "Offline Sync", iconName: "CloudUpload" },
+  { href: "/settings",          label: "Settings",    iconName: "Settings",    permission: PERMISSIONS.ORG_SETTINGS },
+  { href: "/settings/team",     label: "Team",         iconName: "UsersRound",  permission: PERMISSIONS.ORG_SETTINGS },
+  { href: "/settings/security", label: "Security",     iconName: "ShieldCheck" },
+  { href: "/sync",              label: "Offline Sync", iconName: "CloudUpload" },
 ];
 
 // ── Darajani Sports Academy ───────────────────────────────────────────────────
@@ -76,9 +77,10 @@ const NAV_ACADEMY: NavItem[] = [
   { section: "Communications" },
   { href: "/communications",label: "Communications",  iconName: "MessageSquare",permission: PERMISSIONS.COMM_SEND },
   { section: "Admin" },
-  { href: "/settings",      label: "Settings",        iconName: "Settings",    permission: PERMISSIONS.ORG_SETTINGS },
-  { href: "/settings/team", label: "Team",             iconName: "UsersRound",  permission: PERMISSIONS.ORG_SETTINGS },
-  { href: "/sync",          label: "Offline Sync",    iconName: "CloudUpload" },
+  { href: "/settings",          label: "Settings",        iconName: "Settings",    permission: PERMISSIONS.ORG_SETTINGS },
+  { href: "/settings/team",     label: "Team",             iconName: "UsersRound",  permission: PERMISSIONS.ORG_SETTINGS },
+  { href: "/settings/security", label: "Security",         iconName: "ShieldCheck" },
+  { href: "/sync",              label: "Offline Sync",     iconName: "CloudUpload" },
 ];
 
 // ── Agape in Action (Mission) ─────────────────────────────────────────────────
@@ -110,9 +112,10 @@ const NAV_MISSION: NavItem[] = [
   { href: "/reports",        label: "Reports",         iconName: "BarChart3",     permission: PERMISSIONS.REPORT_READ },
   { href: "/media",          label: "Media Library",   iconName: "Images" },
   { section: "Admin" },
-  { href: "/settings",       label: "Settings",        iconName: "Settings",      permission: PERMISSIONS.ORG_SETTINGS },
-  { href: "/settings/team",  label: "Team",             iconName: "UsersRound",    permission: PERMISSIONS.ORG_SETTINGS },
-  { href: "/sync",           label: "Offline Sync",    iconName: "CloudUpload" },
+  { href: "/settings",          label: "Settings",        iconName: "Settings",      permission: PERMISSIONS.ORG_SETTINGS },
+  { href: "/settings/team",     label: "Team",             iconName: "UsersRound",    permission: PERMISSIONS.ORG_SETTINGS },
+  { href: "/settings/security", label: "Security",         iconName: "ShieldCheck" },
+  { href: "/sync",              label: "Offline Sync",     iconName: "CloudUpload" },
 ];
 
 const NAV_BY_TYPE: Partial<Record<string, NavItem[]>> = {

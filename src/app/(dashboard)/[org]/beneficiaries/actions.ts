@@ -10,30 +10,32 @@ import { dbRetry } from "@/lib/db/prisma";
 import { Resend } from "resend";
 
 const BeneficiarySchema = z.object({
-  firstName: z.string().min(2, "First name is required"),
-  middleName: z.string().optional().or(z.literal("")),
-  lastName: z.string().min(2, "Last name is required"),
-  dateOfBirth: z.string().refine((d) => !isNaN(Date.parse(d)), "Valid date of birth required"),
-  gender: z.enum(["MALE", "FEMALE", "OTHER", "PREFER_NOT_TO_SAY"]),
-  nationalId: z.string().optional().or(z.literal("")),
-  birthCertNo: z.string().optional().or(z.literal("")),
-  phone: z.string().optional().or(z.literal("")),
-  email: z.string().email().optional().or(z.literal("")),
-  address: z.string().optional().or(z.literal("")),
-  county: z.string().optional().or(z.literal("")),
-  guardianName: z.string().optional().or(z.literal("")),
-  guardianPhone: z.string().optional().or(z.literal("")),
-  guardianEmail: z.string().email().optional().or(z.literal("")),
-  guardianRelationship: z.string().optional().or(z.literal("")),
-  isAthlete: z.coerce.boolean().optional(),
-  isStudent: z.coerce.boolean().optional(),
+  firstName:            z.string().min(2, "First name is required"),
+  middleName:           z.string().optional().or(z.literal("")),
+  lastName:             z.string().min(2, "Last name is required"),
+  dateOfBirth:          z.string().refine((d) => !isNaN(Date.parse(d)), "Valid date of birth required"),
+  gender:               z.enum(["MALE", "FEMALE", "OTHER", "PREFER_NOT_TO_SAY"]),
+  nationalId:           z.string().optional().or(z.literal("")),
+  birthCertNo:          z.string().min(1, "Birth certificate number is required"),
+  phone:                z.string().min(1, "Phone number is required"),
+  email:                z.string().email().optional().or(z.literal("")),
+  address:              z.string().optional().or(z.literal("")),
+  county:               z.string().min(1, "County / area is required"),
+  guardianName:         z.string().min(2, "Guardian name is required"),
+  guardianPhone:        z.string().min(1, "Guardian phone is required"),
+  guardianEmail:        z.string().email().optional().or(z.literal("")),
+  guardianRelationship: z.string().min(1, "Guardian relationship is required"),
+  isAthlete:            z.coerce.boolean().optional(),
+  isStudent:            z.coerce.boolean().optional(),
   // Initial athlete fields (captured at registration)
-  position: z.string().optional().or(z.literal("")),
-  preferredFoot: z.string().optional().or(z.literal("")),
-  currentClub: z.string().optional().or(z.literal("")),
+  position:             z.string().optional().or(z.literal("")),
+  preferredFoot:        z.string().optional().or(z.literal("")),
+  currentClub:          z.string().optional().or(z.literal("")),
   // Initial student fields
-  school: z.string().optional().or(z.literal("")),
-  grade: z.string().optional().or(z.literal("")),
+  school:               z.string().optional().or(z.literal("")),
+  grade:                z.string().optional().or(z.literal("")),
+  // Serialised uploaded documents JSON
+  _docs:                z.string().optional().or(z.literal("")),
 });
 
 export type BeneficiaryActionResult =
@@ -120,6 +122,30 @@ export async function createBeneficiary(orgSlug: string, formData: FormData): Pr
         grade: data.grade || null,
       },
     }));
+  }
+
+  // NeonHttp: save each uploaded document sequentially
+  if (data._docs) {
+    type DocPayload = { docType: string; fileName: string; fileKey: string; fileUrl: string; fileSize: number; mimeType: string };
+    let docs: DocPayload[] = [];
+    try { docs = JSON.parse(data._docs); } catch { /* ignore malformed */ }
+    for (const doc of docs) {
+      await dbRetry(() =>
+        prisma.document.create({
+          data: {
+            organizationId: ctx.organization.id,
+            beneficiaryId:  beneficiary.id,
+            uploadedById:   ctx.user.id,
+            docType:        doc.docType as any,
+            fileName:       doc.fileName,
+            fileKey:        doc.fileKey,
+            fileUrl:        doc.fileUrl,
+            fileSize:       doc.fileSize,
+            mimeType:       doc.mimeType,
+          },
+        })
+      );
+    }
   }
 
   prisma.auditLog.create({

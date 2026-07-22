@@ -1,6 +1,7 @@
 import { signIn } from "@/lib/auth";
 import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 
 export const metadata = { title: "Sign in — Lerato Platform" };
 
@@ -88,6 +89,11 @@ async function SignInForm({
       <button type="submit" className="btn-primary w-full">
         Sign in
       </button>
+      <div className="text-center">
+        <Link href={"/sign-in/forgot" as any} className="text-xs text-[var(--fg-muted)] hover:text-[var(--fg)] hover:underline">
+          Forgot password?
+        </Link>
+      </div>
     </form>
   );
 }

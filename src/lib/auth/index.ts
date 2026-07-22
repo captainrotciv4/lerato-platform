@@ -29,16 +29,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const parsed = CredentialsSchema.safeParse(credentials);
         if (!parsed.success) return null;
+
+        const ip =
+          request?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+          request?.headers?.get("x-real-ip") ??
+          null;
+        const ua = request?.headers?.get("user-agent") ?? null;
 
         const user = await dbRetry(() =>
           prisma.user.findUnique({ where: { email: parsed.data.email } })
         );
-        if (!user || !user.hashedPassword || !user.active) return null;
+
+        if (!user || !user.hashedPassword || !user.active) {
+          prisma.loginLog.create({
+            data: { email: parsed.data.email, success: false, ipAddress: ip, userAgent: ua },
+          }).catch(() => null);
+          return null;
+        }
 
         const valid = await compare(parsed.data.password, user.hashedPassword);
+
+        prisma.loginLog.create({
+          data: { userId: user.id, email: parsed.data.email, success: valid, ipAddress: ip, userAgent: ua },
+        }).catch(() => null);
+
         if (!valid) return null;
 
         await dbRetry(() =>
