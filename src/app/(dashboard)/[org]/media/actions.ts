@@ -12,7 +12,7 @@ const SaveMediaSchema = z.object({
   description: z.string().optional().or(z.literal("")),
   fileName: z.string(),
   fileKey: z.string(),
-  fileUrl: z.string().url(),
+  fileUrl: z.string().min(1),
   fileSize: z.coerce.number().int().positive(),
   mimeType: z.string(),
   eventId: z.string().cuid().optional().or(z.literal("")),

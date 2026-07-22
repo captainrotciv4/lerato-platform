@@ -82,7 +82,7 @@ export default async function MediaPage({
         title: a.title,
         description: a.description,
         fileName: a.fileName,
-        fileUrl: a.fileUrl,
+        fileUrl: `/api/files/${a.fileKey}`,
         fileSize: a.fileSize,
         mimeType: a.mimeType,
         capturedAt: a.capturedAt ? formatDate(a.capturedAt) : null,

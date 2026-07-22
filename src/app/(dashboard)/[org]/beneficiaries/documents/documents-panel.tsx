@@ -170,7 +170,7 @@ export function DocumentsPanel({ orgSlug, beneficiaryId, documents, canWrite }: 
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   <a
-                    href={d.fileUrl}
+                    href={`/api/files/${d.fileUrl}`}
                     target="_blank"
                     rel="noreferrer"
                     className="rounded p-1 text-[var(--fg-muted)] hover:bg-[var(--bg-muted)] hover:text-[var(--fg)]"
