@@ -93,6 +93,7 @@ export default async function OrgDashboardPage({
             </Link>
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="border-b border-[var(--border)] text-xs uppercase tracking-wide text-[var(--fg-muted)]">
               <tr>
@@ -115,6 +116,7 @@ export default async function OrgDashboardPage({
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

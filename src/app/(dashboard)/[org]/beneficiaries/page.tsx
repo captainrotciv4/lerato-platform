@@ -58,7 +58,7 @@ export default async function BeneficiariesPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold text-[var(--fg)] capitalize">{noun}</h1>
           <p className="mt-1 text-sm text-[var(--fg-muted)]">
@@ -67,7 +67,7 @@ export default async function BeneficiariesPage({
               : `Students, players, and programme participants registered with ${ctx.organization.shortName}.`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link href={`/${org}/beneficiaries/report` as any} className="btn-secondary inline-flex items-center gap-2">
             <BarChart2 className="h-4 w-4" /> Report
           </Link>
@@ -94,6 +94,7 @@ export default async function BeneficiariesPage({
 
       {/* Table */}
       <div className="card !p-0 overflow-hidden">
+        <div className="overflow-x-auto">
         {beneficiaries.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-sm text-[var(--fg-muted)]">No {noun} match your search.</p>
@@ -231,6 +232,7 @@ export default async function BeneficiariesPage({
             </tbody>
           </table>
         )}
+        </div>
       </div>
 
       <p className="text-xs text-[var(--fg-muted)]">

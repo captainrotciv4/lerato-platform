@@ -173,7 +173,7 @@ export default async function PlayerProfilePage({
 
           {/* Quick stats strip */}
           {ap && (
-            <div className="flex shrink-0 flex-wrap items-stretch gap-0 divide-x divide-[var(--border)] rounded-xl border border-[var(--border)] bg-[var(--bg)]/90 backdrop-blur-sm">
+            <div className="flex shrink-0 items-stretch gap-0 divide-x divide-[var(--border)] rounded-xl border border-[var(--border)] bg-[var(--bg)]/90 backdrop-blur-sm overflow-x-auto">
               {attendanceRate !== null && (
                 <div className="px-4 py-3 text-center">
                   <div className={`font-display text-2xl font-bold ${
@@ -276,7 +276,7 @@ export default async function PlayerProfilePage({
             <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-[var(--fg-muted)]">
               Season performance
             </h2>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {[
                 { label: "Matches",      value: ap.matchesPlayed, cls: "text-[var(--fg)]"   },
                 { label: "Goals",        value: ap.goals,         cls: "text-emerald-600"   },

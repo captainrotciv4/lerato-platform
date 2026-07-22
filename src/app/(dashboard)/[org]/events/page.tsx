@@ -139,7 +139,7 @@ function Section({
       {/* Mobile: card stack */}
       <div className="divide-y divide-[var(--border)] sm:hidden">
         {events.map((e) => (
-          <div key={e.id} className="px-4 py-3 space-y-1">
+          <Link key={e.id} href={`/${org}/events/${e.id}` as any} className="block px-4 py-3 space-y-1 hover:bg-[var(--bg-muted)]">
             <div className="flex items-start justify-between gap-2">
               <div>
                 <div className="font-medium text-sm text-[var(--fg)]">{e.name}</div>
@@ -152,15 +152,12 @@ function Section({
               </span>
             </div>
             {e._count.mediaAssets > 0 && (
-              <Link
-                href={`/${org}/media?event=${e.id}` as any}
-                className="inline-flex items-center gap-1 text-xs text-[var(--brand-primary)] hover:underline"
-              >
+              <span className="inline-flex items-center gap-1 text-xs text-[var(--brand-primary)]">
                 <Images className="h-3 w-3" />
                 {e._count.mediaAssets} photo{e._count.mediaAssets !== 1 ? "s" : ""} / videos
-              </Link>
+              </span>
             )}
-          </div>
+          </Link>
         ))}
       </div>
 
@@ -168,12 +165,14 @@ function Section({
       <table className="hidden w-full text-sm sm:table">
         <tbody>
           {events.map((e) => (
-            <tr key={e.id} className="border-t border-[var(--border)] hover:bg-[var(--bg-muted)]">
+            <tr key={e.id} className="border-t border-[var(--border)] hover:bg-[var(--bg-muted)] cursor-pointer">
               <td className="px-6 py-3">
-                <div className="font-medium text-[var(--fg)]">{e.name}</div>
-                <div className="text-xs text-[var(--fg-muted)]">
-                  {TYPE_LABEL[e.type] ?? e.type}
-                </div>
+                <Link href={`/${org}/events/${e.id}` as any} className="block">
+                  <div className="font-medium text-[var(--fg)] hover:text-[var(--brand-primary)]">{e.name}</div>
+                  <div className="text-xs text-[var(--fg-muted)]">
+                    {TYPE_LABEL[e.type] ?? e.type}
+                  </div>
+                </Link>
               </td>
               <td className="px-6 py-3 text-[var(--fg-muted)]">{e.venue || "—"}</td>
               <td className="px-6 py-3 text-[var(--fg-muted)]">{formatDate(e.startsAt)}</td>
@@ -183,17 +182,13 @@ function Section({
                 </span>
               </td>
               <td className="px-6 py-3 text-right">
-                {e._count.mediaAssets > 0 ? (
-                  <Link
-                    href={`/${org}/media?event=${e.id}` as any}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1 text-xs font-medium text-[var(--fg-muted)] hover:bg-[var(--bg-muted)] hover:text-[var(--fg)]"
-                  >
-                    <Images className="h-3.5 w-3.5" />
-                    {e._count.mediaAssets} media
-                  </Link>
-                ) : (
-                  <span className="text-xs text-[var(--fg-muted)]">No media</span>
-                )}
+                <Link
+                  href={`/${org}/events/${e.id}` as any}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1 text-xs font-medium text-[var(--fg-muted)] hover:bg-[var(--bg-muted)] hover:text-[var(--fg)]"
+                >
+                  <Images className="h-3.5 w-3.5" />
+                  {e._count.mediaAssets > 0 ? `${e._count.mediaAssets} media` : "Open"}
+                </Link>
               </td>
             </tr>
           ))}

@@ -68,14 +68,14 @@ export default async function FinancePage({ params }: { params: Promise<{ org: s
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold text-[var(--fg)]">Finance</h1>
           <p className="mt-1 text-sm text-[var(--fg-muted)]">
             Fund tracking and expenditure for {ctx.organization.shortName}.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link href={`/${org}/finance/accounts` as any} className="btn-secondary inline-flex items-center gap-2 text-sm">
             <BookOpen className="h-4 w-4" /> Accounts
           </Link>
@@ -141,7 +141,7 @@ export default async function FinancePage({ params }: { params: Promise<{ org: s
           </div>
           <div className="space-y-2">
             {pendingTxs.map((t) => (
-              <div key={t.id} className="flex items-center justify-between rounded-lg bg-white px-4 py-2.5 text-sm shadow-sm">
+              <div key={t.id} className="flex flex-col gap-2 rounded-lg bg-white px-4 py-2.5 text-sm shadow-sm sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <span className="font-medium text-[var(--fg)]">{t.description}</span>
                   <span className="mx-2 text-[var(--fg-muted)]">·</span>
