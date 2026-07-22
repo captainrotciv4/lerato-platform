@@ -11,11 +11,10 @@ type NavItem =
 // ── Lerato Foundation ─────────────────────────────────────────────────────────
 const NAV_FOUNDATION: NavItem[] = [
   { href: "", label: "Dashboard", iconName: "Home" },
-  { section: "People" },
+  { section: "Community" },
   { href: "/beneficiaries", label: "Beneficiaries",    iconName: "Users",         permission: PERMISSIONS.BENEFICIARY_READ },
   { href: "/donors",        label: "Donors",            iconName: "Heart",         permission: PERMISSIONS.DONOR_READ },
-  { href: "/staff",         label: "Staff & Volunteers",iconName: "ShieldCheck",   permission: PERMISSIONS.STAFF_READ },
-  { href: "/partners",      label: "Partners",          iconName: "Users",         permission: PERMISSIONS.PARTNER_READ },
+  { href: "/partners",      label: "Partners",          iconName: "Users2",        permission: PERMISSIONS.PARTNER_READ },
   { section: "Finance" },
   { href: "/finance",               label: "Finance",           iconName: "CreditCard",    permission: PERMISSIONS.FINANCE_READ },
   { href: "/allocations",           label: "Allocations",       iconName: "ArrowLeftRight",permission: PERMISSIONS.ALLOCATION_READ },
@@ -26,7 +25,8 @@ const NAV_FOUNDATION: NavItem[] = [
   { href: "/finance/statements",    label: "Statements",        iconName: "BarChart2",     permission: PERMISSIONS.FINANCE_READ },
   { href: "/finance/reconcile",     label: "Reconcile",         iconName: "GitMerge",      permission: PERMISSIONS.FINANCE_READ },
   { href: "/finance/assets",        label: "Fixed Assets",      iconName: "Landmark",      permission: PERMISSIONS.FINANCE_READ },
-  { section: "Human Resources" },
+  { section: "People" },
+  { href: "/staff",         label: "Staff & Volunteers",iconName: "ShieldCheck",   permission: PERMISSIONS.STAFF_READ },
   { href: "/hr",            label: "HR & People",       iconName: "Users2",        permission: PERMISSIONS.STAFF_READ },
   { href: "/hr/leave",      label: "Leave",             iconName: "CalendarMinus", permission: PERMISSIONS.STAFF_READ },
   { href: "/hr/payroll",    label: "Payroll",           iconName: "Banknote",      permission: PERMISSIONS.FINANCE_READ },

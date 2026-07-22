@@ -43,7 +43,7 @@ function OrgSwitcher({ current, orgs }: { current: string; orgs: AccessibleOrg[]
           key={o.slug}
           href={`/${o.slug}` as any}
           className={cn(
-            "flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-150",
+            "flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-150",
             o.slug === current
               ? "text-white shadow-sm"
               : "text-[var(--fg-muted)] hover:bg-[var(--bg)] hover:text-[var(--fg)]"
@@ -53,8 +53,7 @@ function OrgSwitcher({ current, orgs }: { current: string; orgs: AccessibleOrg[]
           {o.slug !== current && (
             <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: o.primaryColor }} />
           )}
-          <span className="hidden sm:inline">{o.shortName}</span>
-          <span className="sm:hidden">{o.shortName.slice(0, 3)}</span>
+          <span>{o.shortName}</span>
         </Link>
       ))}
     </div>
@@ -107,7 +106,7 @@ export function SidebarShell({
       {/* ── Mobile backdrop ────────────────────────────────────────── */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/60 lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -127,8 +126,8 @@ export function SidebarShell({
           "transition-transform duration-300 ease-in-out lg:transition-none",
         )}
         style={{
-          width: collapsed ? 56 : 256,
-          // Desktop smooth width transition; mobile always full 256
+          // Mobile drawer is always 256px; desktop respects collapsed state
+          width: mobileOpen ? 256 : (collapsed ? 56 : 256),
           transition: "transform 0.3s ease, width 0.2s ease",
         }}
       >
@@ -168,7 +167,7 @@ export function SidebarShell({
 
         {/* ── User footer ──────────────────────────────────────────── */}
         <div className="shrink-0 border-t border-[var(--border)] p-3">
-          <div className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-[var(--bg-muted)]">
+          <div className="flex items-center gap-3 rounded-lg px-2 py-1.5">
             <div
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
               style={{ background: primaryColor }}
@@ -184,18 +183,17 @@ export function SidebarShell({
                 </div>
               </div>
             )}
-            {!collapsed && (
-              <form action={signOutAction}>
-                <button
-                  title="Sign out"
-                  className="rounded-md p-1 text-[var(--fg-muted)] transition-colors hover:bg-[var(--border)] hover:text-[var(--fg)]"
-                >
-                  <LogOut className="h-4 w-4" />
-                </button>
-              </form>
-            )}
           </div>
-          {/* Sign-out button in collapsed mode */}
+          {/* Sign-out — text label for visibility */}
+          {!collapsed && (
+            <form action={signOutAction} className="mt-1">
+              <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--fg-muted)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--fg)]">
+                <LogOut className="h-3.5 w-3.5" />
+                Sign out
+              </button>
+            </form>
+          )}
+          {/* Sign-out icon only in collapsed mode */}
           {collapsed && (
             <form action={signOutAction} className="mt-1">
               <button
