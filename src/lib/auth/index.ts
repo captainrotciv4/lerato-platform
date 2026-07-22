@@ -60,9 +60,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         // Fire-and-forget: update lastSeenAt + opportunistically rehash to cost 10
         // (passwords were originally hashed at cost 12 — this gradually lowers it)
+        const currentHash = user.hashedPassword; // capture — TS narrowing doesn't cross async boundary
         (async () => {
           const updates: { lastSeenAt: Date; hashedPassword?: string } = { lastSeenAt: new Date() };
-          const costMatch = user.hashedPassword.match(/^\$2[ab]\$(\d+)\$/);
+          const costMatch = currentHash.match(/^\$2[ab]\$(\d+)\$/);
           const currentCost = costMatch ? parseInt(costMatch[1], 10) : 12;
           if (currentCost > 10) {
             const { hash: bcryptHash } = await import("bcryptjs");
