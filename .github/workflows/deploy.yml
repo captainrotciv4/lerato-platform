@@ -1,0 +1,17 @@
+name: Deploy to Netlify
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trigger Netlify build
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.NETLIFY_AUTH_TOKEN }}" \
+            "https://api.netlify.com/api/v1/sites/39264b5f-31ef-4b96-b812-75644bf256c3/builds"
