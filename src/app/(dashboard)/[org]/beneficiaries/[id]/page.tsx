@@ -12,6 +12,7 @@ import {
   createScoutReport,
   deleteBeneficiary,
 } from "../actions";
+import { DocumentsPanel } from "../documents/documents-panel";
 
 export const metadata = { title: "Player Profile — Lerato Platform" };
 
@@ -55,6 +56,9 @@ export default async function PlayerProfilePage({
         scoutReports: {
           include: { scout: { select: { id: true, name: true } } },
           orderBy: { reportDate: "desc" },
+        },
+        documents: {
+          orderBy: { createdAt: "desc" },
         },
       },
     })
@@ -733,6 +737,14 @@ export default async function PlayerProfilePage({
           )}
         </div>
       )}
+
+      {/* ── Documents ──────────────────────────────────────────────────── */}
+      <DocumentsPanel
+        orgSlug={org}
+        beneficiaryId={id}
+        documents={beneficiary.documents}
+        canWrite={canEdit}
+      />
 
       {/* ── Scout reports ───────────────────────────────────────────────── */}
       <div className="card space-y-4">

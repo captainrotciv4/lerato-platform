@@ -94,6 +94,10 @@ model Organization {
   vendors         Vendor[]
   purchaseOrders  PurchaseOrder[]
 
+  // Files
+  documents       Document[]  @relation("OrgDocuments")
+  mediaAssets     MediaAsset[] @relation("OrgMedia")
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
@@ -233,6 +237,7 @@ model Beneficiary {
   trainingAttendances TrainingAttendance[]
   outcomes            Outcome[]
   surveyResponses     SurveyResponse[]
+  documents           Document[]      @relation("BeneficiaryDocuments")
 
   // Branch assignment (Darajani)
   branchId        String?
@@ -539,6 +544,7 @@ model Branch {
   staff           StaffVolunteer[]
   sessions        TrainingSession[]
   memberships     Membership[]
+  mediaAssets     MediaAsset[]     @relation("BranchMedia")
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -609,6 +615,8 @@ model Program {
   // Fund allocations into / out of this programme
   allocationsFrom FundAllocation[] @relation("AllocationSourceProgram")
   allocationsTo   FundAllocation[] @relation("AllocationDestinationProgram")
+
+  mediaAssets     MediaAsset[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -773,6 +781,8 @@ model Event {
   status          EventStatus @default(SCHEDULED)
   registrationOpen Boolean @default(false)
   capacity        Int?
+
+  mediaAssets     MediaAsset[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -1468,4 +1478,84 @@ enum POStatus {
   ORDERED
   RECEIVED
   CANCELLED
+}
+
+// ════════════════════════════════════════════════════════════════════
+// DOCUMENTS — player registration documents (birth cert, ID copy, etc.)
+// ════════════════════════════════════════════════════════════════════
+
+model Document {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation("OrgDocuments", fields: [organizationId], references: [id], onDelete: Cascade)
+  beneficiaryId   String?
+  beneficiary     Beneficiary? @relation("BeneficiaryDocuments", fields: [beneficiaryId], references: [id])
+  uploadedById    String
+
+  docType         DocType
+  label           String?         // custom label for OTHER
+  fileName        String          // original file name
+  fileKey         String          // R2 object key
+  fileUrl         String          // public CDN URL
+  fileSize        Int             // bytes
+  mimeType        String
+
+  createdAt       DateTime @default(now())
+
+  @@index([beneficiaryId])
+  @@index([organizationId])
+}
+
+enum DocType {
+  BIRTH_CERT
+  PASSPORT_PHOTO
+  PARENT_ID
+  NATIONAL_ID
+  MEDICAL_FORM
+  CONSENT_FORM
+  OTHER
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MEDIA ASSETS — photos and videos, tagged by event/programme/branch
+// ════════════════════════════════════════════════════════════════════
+
+model MediaAsset {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation("OrgMedia", fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedById    String
+
+  mediaType       MediaType
+  title           String?
+  description     String?
+  fileName        String
+  fileKey         String
+  fileUrl         String
+  thumbnailUrl    String?         // for video thumbnails
+  fileSize        Int
+  mimeType        String
+  duration        Int?            // seconds, video only
+
+  eventId         String?
+  event           Event?   @relation(fields: [eventId], references: [id])
+  programId       String?
+  program         Program? @relation(fields: [programId], references: [id])
+  branchId        String?
+  branch          Branch?  @relation("BranchMedia", fields: [branchId], references: [id])
+  capturedAt      DateTime?
+  tags            String[]
+
+  createdAt       DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([eventId])
+  @@index([programId])
+  @@index([branchId])
+  @@index([capturedAt])
+}
+
+enum MediaType {
+  PHOTO
+  VIDEO
 }
