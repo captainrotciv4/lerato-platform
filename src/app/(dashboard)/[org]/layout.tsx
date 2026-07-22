@@ -41,8 +41,9 @@ const NAV_FOUNDATION: NavItem[] = [
   { href: "/education", label: "Programmes", iconName: "GraduationCap", permission: PERMISSIONS.PROGRAM_READ },
   { href: "/reports",   label: "Reports",    iconName: "BarChart3",     permission: PERMISSIONS.REPORT_READ },
   { section: "Admin" },
-  { href: "/settings",  label: "Settings",   iconName: "Settings",      permission: PERMISSIONS.ORG_SETTINGS },
-  { href: "/sync",      label: "Offline Sync", iconName: "CloudUpload" },
+  { href: "/settings",      label: "Settings",   iconName: "Settings",    permission: PERMISSIONS.ORG_SETTINGS },
+  { href: "/settings/team", label: "Team",        iconName: "UsersRound",  permission: PERMISSIONS.ORG_SETTINGS },
+  { href: "/sync",          label: "Offline Sync", iconName: "CloudUpload" },
 ];
 
 // ── Darajani Sports Academy ───────────────────────────────────────────────────
@@ -73,6 +74,7 @@ const NAV_ACADEMY: NavItem[] = [
   { href: "/communications",label: "Communications",  iconName: "MessageSquare",permission: PERMISSIONS.COMM_SEND },
   { section: "Admin" },
   { href: "/settings",      label: "Settings",        iconName: "Settings",    permission: PERMISSIONS.ORG_SETTINGS },
+  { href: "/settings/team", label: "Team",             iconName: "UsersRound",  permission: PERMISSIONS.ORG_SETTINGS },
   { href: "/sync",          label: "Offline Sync",    iconName: "CloudUpload" },
 ];
 
@@ -105,6 +107,7 @@ const NAV_MISSION: NavItem[] = [
   { href: "/reports",        label: "Reports",         iconName: "BarChart3",     permission: PERMISSIONS.REPORT_READ },
   { section: "Admin" },
   { href: "/settings",       label: "Settings",        iconName: "Settings",      permission: PERMISSIONS.ORG_SETTINGS },
+  { href: "/settings/team",  label: "Team",             iconName: "UsersRound",    permission: PERMISSIONS.ORG_SETTINGS },
   { href: "/sync",           label: "Offline Sync",    iconName: "CloudUpload" },
 ];
 

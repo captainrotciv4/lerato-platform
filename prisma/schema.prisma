@@ -166,9 +166,14 @@ model Membership {
   joinedAt        DateTime @default(now())
   revokedAt       DateTime?
 
+  // Optional branch scope — when set, this user only sees data for this branch
+  branchId        String?
+  branch          Branch?  @relation(fields: [branchId], references: [id])
+
   @@unique([userId, organizationId])
   @@index([organizationId])
   @@index([userId])
+  @@index([branchId])
 }
 
 enum Role {
@@ -533,6 +538,7 @@ model Branch {
   beneficiaries   Beneficiary[]
   staff           StaffVolunteer[]
   sessions        TrainingSession[]
+  memberships     Membership[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

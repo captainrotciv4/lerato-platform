@@ -10,7 +10,12 @@ export default async function BranchesPage({ params }: { params: Promise<{ org: 
   const ctx = await requireTenant(org);
 
   const branches = await dbRetry(() => prisma.branch.findMany({
-    where: { organizationId: ctx.organization.id, active: true },
+    where: {
+      organizationId: ctx.organization.id,
+      active: true,
+      // Branch-scoped users only see their own branch
+      ...(ctx.branchId ? { id: ctx.branchId } : {}),
+    },
     orderBy: [{ isMain: "desc" }, { name: "asc" }],
     include: {
       _count: { select: { beneficiaries: { where: { deletedAt: null } }, staff: { where: { deletedAt: null } } } },

@@ -30,6 +30,7 @@ export default async function StaffPage({
     where: {
       organizationId: ctx.organization.id,
       deletedAt: null,
+      ...(ctx.branchId ? { branchId: ctx.branchId } : {}),
       ...(q ? { OR: [
         { firstName: { contains: q, mode: "insensitive" } },
         { lastName: { contains: q, mode: "insensitive" } },
@@ -38,6 +39,7 @@ export default async function StaffPage({
     },
     orderBy: [{ active: "desc" }, { lastName: "asc" }],
     take: 100,
+    include: { branch: { select: { name: true } } },
   }));
 
   return (
@@ -68,7 +70,7 @@ export default async function StaffPage({
                 <th className="px-6 py-3 text-left font-medium">Name</th>
                 <th className="px-6 py-3 text-left font-medium">Type</th>
                 <th className="px-6 py-3 text-left font-medium">Position</th>
-                <th className="px-6 py-3 text-left font-medium">Department</th>
+                {!ctx.branchId && <th className="px-6 py-3 text-left font-medium">Branch</th>}
                 <th className="px-6 py-3 text-left font-medium">Started</th>
                 <th className="px-6 py-3 text-left font-medium">Status</th>
               </tr>
@@ -83,7 +85,9 @@ export default async function StaffPage({
                     <span className={`badge ${TYPE_COLORS[s.type] || "bg-gray-100 text-gray-800"}`}>{s.type.toLowerCase()}</span>
                   </td>
                   <td className="px-6 py-3 text-[var(--fg-muted)]">{s.position || "—"}</td>
-                  <td className="px-6 py-3 text-[var(--fg-muted)]">{s.department || "—"}</td>
+                  {!ctx.branchId && (
+                    <td className="px-6 py-3 text-[var(--fg-muted)]">{s.branch?.name || "—"}</td>
+                  )}
                   <td className="px-6 py-3 text-[var(--fg-muted)]">{formatDate(s.startDate)}</td>
                   <td className="px-6 py-3">
                     {s.active

@@ -30,6 +30,7 @@ export default async function BeneficiariesPage({
     where: {
       organizationId: ctx.organization.id,
       deletedAt: null,
+      ...(ctx.branchId ? { branchId: ctx.branchId } : {}),
       ...(q
         ? {
             OR: [
@@ -50,6 +51,11 @@ export default async function BeneficiariesPage({
   const noun = isAcademy ? "players" : "beneficiaries";
   const nounSingular = isAcademy ? "player" : "beneficiary";
 
+  // Resolve branch name for scoped users
+  const scopedBranch = ctx.branchId
+    ? await dbRetry(() => prisma.branch.findUnique({ where: { id: ctx.branchId! }, select: { name: true } }))
+    : null;
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between">
@@ -57,7 +63,7 @@ export default async function BeneficiariesPage({
           <h1 className="font-display text-3xl font-bold text-[var(--fg)] capitalize">{noun}</h1>
           <p className="mt-1 text-sm text-[var(--fg-muted)]">
             {isAcademy
-              ? `Player database — ${ctx.organization.shortName}`
+              ? `Player database — ${scopedBranch ? scopedBranch.name : ctx.organization.shortName}`
               : `Students, players, and programme participants registered with ${ctx.organization.shortName}.`}
           </p>
         </div>

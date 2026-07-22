@@ -16,6 +16,7 @@ const StaffSchema = z.object({
   position: z.string().optional().or(z.literal("")),
   department: z.string().optional().or(z.literal("")),
   startDate: z.string().optional().or(z.literal("")),
+  branchId: z.string().optional().or(z.literal("")),
 });
 
 export async function createStaff(orgSlug: string, formData: FormData) {
@@ -37,6 +38,7 @@ export async function createStaff(orgSlug: string, formData: FormData) {
         position: data.position || null,
         department: data.department || null,
         startDate: data.startDate ? new Date(data.startDate) : null,
+        branchId: data.branchId || null,
       },
     });
     await tx.auditLog.create({

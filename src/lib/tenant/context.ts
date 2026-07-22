@@ -20,6 +20,7 @@ export type TenantContext = {
   user: User;
   role: Role;
   permissions: string[];
+  branchId: string | null;
 };
 
 // ── Session (JWT decode — already fast, but deduplicate within the render) ──
@@ -31,7 +32,7 @@ function buildMembershipFetcher(userId: string) {
     () =>
       prisma.membership.findMany({
         where: { userId, active: true, revokedAt: null },
-        include: { user: true, organization: true },
+        include: { user: true, organization: true, branch: true },
         orderBy: { organization: { name: "asc" } },
       }),
     [`memberships-${userId}`],
@@ -60,6 +61,7 @@ export async function requireTenant(slug: string): Promise<TenantContext> {
     user: membership.user,
     role: membership.role,
     permissions: membership.permissions,
+    branchId: membership.branchId ?? null,
   };
 }
 
