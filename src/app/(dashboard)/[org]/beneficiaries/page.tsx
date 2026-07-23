@@ -210,12 +210,12 @@ export default async function BeneficiariesPage({
                       </td>
                       <td className="px-6 py-3">
                         {regStatus ? (
-                          <span className={`badge ${
+                          <span className={`badge whitespace-nowrap ${
                             regStatus.toLowerCase().includes("full")
                               ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
                               : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
                           }`}>
-                            {regStatus}
+                            {regStatus.toLowerCase().includes("full") ? "Registered" : regStatus}
                           </span>
                         ) : "—"}
                       </td>

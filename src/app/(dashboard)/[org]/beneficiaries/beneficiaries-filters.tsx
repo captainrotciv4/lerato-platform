@@ -49,12 +49,10 @@ export function BeneficiaryFilters({ schools, areas, current }: Props) {
         {schools.map((s) => <option key={s} value={s}>{s}</option>)}
       </select>
 
-      {areas.length > 0 && (
-        <select value={current.area ?? ""} onChange={(e) => update("area", e.target.value)} className={selectCls}>
-          <option value="">All areas</option>
-          {areas.map((a) => <option key={a} value={a}>{a}</option>)}
-        </select>
-      )}
+      <select value={current.area ?? ""} onChange={(e) => update("area", e.target.value)} className={selectCls}>
+        <option value="">All areas</option>
+        {areas.map((a) => <option key={a} value={a}>{a}</option>)}
+      </select>
 
       <select value={current.status ?? ""} onChange={(e) => update("status", e.target.value)} className={selectCls}>
         <option value="">All statuses</option>
