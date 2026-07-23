@@ -12,7 +12,7 @@ interface Player {
   firstName: string;
   middleName: string | null;
   lastName: string;
-  nationalId: string | null;
+  admissionNo: string | null;
   athleteProfile: { position: string | null; jerseyNumber: number | null } | null;
 }
 
@@ -50,7 +50,7 @@ export function RollcallForm({ org, branchId, branchName, players, today }: Prop
         const q = search.toLowerCase();
         return (
           fullName(p.firstName, p.middleName, p.lastName).toLowerCase().includes(q) ||
-          (p.nationalId?.toLowerCase().includes(q) ?? false)
+          (p.admissionNo?.toLowerCase().includes(q) ?? false)
         );
       })
     : players;
@@ -191,7 +191,7 @@ export function RollcallForm({ org, branchId, branchName, players, today }: Prop
           {players.map((b, i) => {
             const name    = fullName(b.firstName, b.middleName, b.lastName);
             const q = search.toLowerCase();
-            const hidden = search && !name.toLowerCase().includes(q) && !(b.nationalId?.toLowerCase().includes(q) ?? false);
+            const hidden = search && !name.toLowerCase().includes(q) && !(b.admissionNo?.toLowerCase().includes(q) ?? false);
             return (
               <label
                 key={b.id}
@@ -207,7 +207,7 @@ export function RollcallForm({ org, branchId, branchName, players, today }: Prop
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-[var(--fg)] truncate">{name}</div>
                   <div className="text-xs text-[var(--fg-muted)]">
-                    {b.nationalId && <span className="font-mono mr-2">{b.nationalId}</span>}
+                    {b.admissionNo && <span className="font-mono mr-2">{b.admissionNo}</span>}
                     {b.athleteProfile?.position || "Player"}
                     {b.athleteProfile?.jerseyNumber != null && (
                       <span className="ml-2 font-mono">#{b.athleteProfile.jerseyNumber}</span>

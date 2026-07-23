@@ -21,7 +21,7 @@ export default async function NewRollcallPage({
       include: {
         beneficiaries: {
           where: { deletedAt: null },
-          orderBy: [{ nationalId: "asc" }, { lastName: "asc" }, { firstName: "asc" }],
+          orderBy: [{ admissionNo: "asc" }, { lastName: "asc" }, { firstName: "asc" }],
           include: { athleteProfile: { select: { position: true, jerseyNumber: true } } },
         },
       },
