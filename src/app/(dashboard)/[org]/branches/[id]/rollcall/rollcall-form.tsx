@@ -12,6 +12,7 @@ interface Player {
   firstName: string;
   middleName: string | null;
   lastName: string;
+  nationalId: string | null;
   athleteProfile: { position: string | null; jerseyNumber: number | null } | null;
 }
 
@@ -45,7 +46,13 @@ export function RollcallForm({ org, branchId, branchName, players, today }: Prop
   const [search, setSearch]   = useState("");
 
   const visible = search
-    ? players.filter((p) => fullName(p.firstName, p.middleName, p.lastName).toLowerCase().includes(search.toLowerCase()))
+    ? players.filter((p) => {
+        const q = search.toLowerCase();
+        return (
+          fullName(p.firstName, p.middleName, p.lastName).toLowerCase().includes(q) ||
+          (p.nationalId?.toLowerCase().includes(q) ?? false)
+        );
+      })
     : players;
 
   async function saveOffline(formData: FormData) {
@@ -183,7 +190,8 @@ export function RollcallForm({ org, branchId, branchName, players, today }: Prop
         <div className="divide-y divide-[var(--border)]">
           {players.map((b, i) => {
             const name    = fullName(b.firstName, b.middleName, b.lastName);
-            const hidden  = search && !name.toLowerCase().includes(search.toLowerCase());
+            const q = search.toLowerCase();
+            const hidden = search && !name.toLowerCase().includes(q) && !(b.nationalId?.toLowerCase().includes(q) ?? false);
             return (
               <label
                 key={b.id}
@@ -199,13 +207,13 @@ export function RollcallForm({ org, branchId, branchName, players, today }: Prop
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-[var(--fg)] truncate">{name}</div>
                   <div className="text-xs text-[var(--fg-muted)]">
+                    {b.nationalId && <span className="font-mono mr-2">{b.nationalId}</span>}
                     {b.athleteProfile?.position || "Player"}
                     {b.athleteProfile?.jerseyNumber != null && (
                       <span className="ml-2 font-mono">#{b.athleteProfile.jerseyNumber}</span>
                     )}
                   </div>
                 </div>
-                <span className="shrink-0 text-xs text-[var(--fg-muted)]">#{i + 1}</span>
               </label>
             );
           })}
