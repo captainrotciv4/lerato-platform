@@ -175,10 +175,18 @@ export default async function BranchDetailPage({
             <ShieldCheck className="h-4 w-4" />
             <span><strong className="text-[var(--fg)]">{branch.staff.length}</strong> staff</span>
           </div>
-          <div className="flex items-center gap-2 text-[var(--fg-muted)]">
+            <Link
+            href={`/${org}/branches/${id}/rollcall` as any}
+            className="flex items-center gap-2 text-[var(--fg-muted)] hover:text-[var(--fg)]"
+          >
             <ClipboardList className="h-4 w-4" />
             <span><strong className="text-[var(--fg)]">{totalSessions}</strong> sessions logged</span>
-          </div>
+            {sessions.some((s) => (s as any).status === "PENDING") && (
+              <span className="badge bg-amber-100 text-amber-800 text-[10px]">
+                {sessions.filter((s) => (s as any).status === "PENDING").length} pending
+              </span>
+            )}
+          </Link>
         </div>
       </div>
 

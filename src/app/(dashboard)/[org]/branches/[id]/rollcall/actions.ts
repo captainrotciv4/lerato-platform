@@ -2,6 +2,7 @@
 
 import { prisma, dbRetry } from "@/lib/db/prisma";
 import { requireTenant } from "@/lib/tenant/context";
+import { can, PERMISSIONS } from "@/lib/auth/permissions";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -59,6 +60,33 @@ export async function createRollcall(
 
   revalidatePath(`/${orgSlug}/branches/${branchId}`);
   redirect(`/${orgSlug}/branches/${branchId}`);
+}
+
+/** Approve a pending rollcall. Requires BRANCH_WRITE (Admin / Programme Manager). */
+export async function approveRollcall(
+  orgSlug: string,
+  branchId: string,
+  sessionId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const ctx = await requireTenant(orgSlug);
+    if (!can(ctx.role, ctx.permissions, PERMISSIONS.BRANCH_WRITE)) {
+      return { ok: false, error: "You don't have permission to approve rollcalls." };
+    }
+
+    await dbRetry(() =>
+      prisma.trainingSession.update({
+        where: { id: sessionId },
+        data: { status: "APPROVED", approvedById: ctx.user.id, approvedAt: new Date() },
+      })
+    );
+
+    revalidatePath(`/${orgSlug}/branches/${branchId}`);
+    revalidatePath(`/${orgSlug}/branches/${branchId}/rollcall`);
+    return { ok: true };
+  } catch (err: any) {
+    return { ok: false, error: err?.message ?? "Approval failed" };
+  }
 }
 
 /** Sync an offline-queued rollcall draft — same logic but no redirect. */

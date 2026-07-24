@@ -13,6 +13,7 @@ import {
   deleteBeneficiary,
 } from "../actions";
 import { DocumentsPanel } from "../documents/documents-panel";
+import { EditDetailsForm } from "./edit-details-form";
 
 export const metadata = { title: "Player Profile — Lerato Platform" };
 
@@ -567,16 +568,41 @@ export default async function PlayerProfilePage({
         <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-[var(--fg-muted)]">
           Identity
         </h2>
+        {canEdit && (
+          <EditDetailsForm
+            org={org}
+            beneficiaryId={id}
+            data={{
+              firstName:            beneficiary.firstName,
+              middleName:           beneficiary.middleName,
+              lastName:             beneficiary.lastName,
+              dateOfBirth:          beneficiary.dateOfBirth ? new Date(beneficiary.dateOfBirth).toISOString().slice(0, 10) : "",
+              gender:               beneficiary.gender,
+              nationalId:           beneficiary.nationalId,
+              birthCertNo:          beneficiary.birthCertNo,
+              phone:                beneficiary.phone,
+              email:                beneficiary.email,
+              address:              beneficiary.address,
+              county:               beneficiary.county,
+              guardianName:         beneficiary.guardianName,
+              guardianPhone:        beneficiary.guardianPhone,
+              guardianEmail:        beneficiary.guardianEmail,
+              guardianRelationship: beneficiary.guardianRelationship,
+            }}
+          />
+        )}
         <div className="grid gap-x-8 gap-y-3 sm:grid-cols-2 text-sm">
-          {beneficiary.dateOfBirth && (
-            <div>
-              <div className="text-xs text-[var(--fg-muted)]">Date of birth</div>
+          <div>
+            <div className="text-xs text-[var(--fg-muted)]">Date of birth</div>
+            {beneficiary.dateOfBirth ? (
               <div className="mt-0.5 text-[var(--fg)]">
                 {formatDate(beneficiary.dateOfBirth)}
                 {age != null && <span className="ml-2 text-[var(--fg-muted)]">({age} years old)</span>}
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="mt-0.5 text-[var(--fg-muted)]">Not recorded — pending registration</div>
+            )}
+          </div>
           {beneficiary.nationalId && (
             <div>
               <div className="text-xs text-[var(--fg-muted)]">National ID</div>

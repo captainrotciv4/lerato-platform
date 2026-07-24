@@ -207,7 +207,7 @@ model Beneficiary {
   firstName       String
   middleName      String?
   lastName        String
-  dateOfBirth     DateTime
+  dateOfBirth     DateTime?
   gender          Gender
   nationalId      String?
   birthCertNo     String?
@@ -569,12 +569,17 @@ model TrainingSession {
   notes         String?
   capturedById  String?
 
+  status        String   @default("PENDING")   // PENDING | APPROVED
+  approvedById  String?
+  approvedAt    DateTime?
+
   createdAt     DateTime @default(now())
 
   attendances   TrainingAttendance[]
 
   @@index([branchId])
   @@index([date])
+  @@index([status])
 }
 
 model TrainingAttendance {

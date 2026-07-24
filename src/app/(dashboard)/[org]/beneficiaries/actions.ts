@@ -252,6 +252,115 @@ export async function syncBeneficiaryRecord(
   return { ok: true, admissionNo };
 }
 
+// ── Update core personal details (fix DOB/age errors, contacts, guardian) ──
+
+const BeneficiaryUpdateSchema = z.object({
+  firstName:            z.string().min(2, "First name is required"),
+  middleName:           z.string().optional().or(z.literal("")),
+  lastName:             z.string().min(2, "Last name is required"),
+  // Optional — leave blank when the real birth date is not yet known (record stays incomplete)
+  dateOfBirth:          z.string().refine((d) => d === "" || !isNaN(Date.parse(d)), "Enter a valid date or leave blank").optional().or(z.literal("")),
+  gender:               z.enum(["MALE", "FEMALE", "OTHER", "PREFER_NOT_TO_SAY"]),
+  nationalId:           z.string().optional().or(z.literal("")),
+  birthCertNo:          z.string().optional().or(z.literal("")),
+  phone:                z.string().optional().or(z.literal("")),
+  email:                z.string().email().optional().or(z.literal("")),
+  address:              z.string().optional().or(z.literal("")),
+  county:               z.string().optional().or(z.literal("")),
+  guardianName:         z.string().optional().or(z.literal("")),
+  guardianPhone:        z.string().optional().or(z.literal("")),
+  guardianEmail:        z.string().email().optional().or(z.literal("")),
+  guardianRelationship: z.string().optional().or(z.literal("")),
+});
+
+/** Update a beneficiary's core personal details (DOB, identity, contact, guardian). */
+export async function updateBeneficiary(
+  orgSlug: string,
+  beneficiaryId: string,
+  formData: FormData,
+): Promise<BeneficiaryActionResult> {
+  const ctx = await requireTenant(orgSlug);
+
+  if (!can(ctx.role, ctx.permissions, PERMISSIONS.BENEFICIARY_WRITE)) {
+    return { ok: false, errors: { _form: ["You don't have permission to edit beneficiaries."] } };
+  }
+
+  // Verify the record belongs to this org
+  const existing = await dbRetry(() => prisma.beneficiary.findFirst({
+    where: { id: beneficiaryId, organizationId: ctx.organization.id, deletedAt: null },
+  }));
+  if (!existing) {
+    return { ok: false, errors: { _form: ["Record not found."] } };
+  }
+
+  const raw = Object.fromEntries(formData.entries());
+  const parsed = BeneficiaryUpdateSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false, errors: parsed.error.flatten().fieldErrors as Record<string, string[]> };
+  }
+  const data = parsed.data;
+
+  // Duplicate check — only against OTHER records (exclude this one)
+  const dupeChecks: { birthCertNo?: string; nationalId?: string }[] = [];
+  if (data.birthCertNo) dupeChecks.push({ birthCertNo: data.birthCertNo });
+  if (data.nationalId)  dupeChecks.push({ nationalId:  data.nationalId });
+  if (dupeChecks.length > 0) {
+    const dupe = await dbRetry(() =>
+      prisma.beneficiary.findFirst({
+        where: {
+          organizationId: ctx.organization.id,
+          deletedAt: null,
+          id: { not: beneficiaryId },
+          OR: dupeChecks,
+        },
+        select: { firstName: true, lastName: true, admissionNo: true, birthCertNo: true, nationalId: true },
+      })
+    );
+    if (dupe) {
+      const field = dupe.birthCertNo === data.birthCertNo ? `birth certificate ${data.birthCertNo}` : `national ID ${data.nationalId}`;
+      const ref   = dupe.admissionNo ? ` (${dupe.admissionNo})` : "";
+      return { ok: false, errors: { _form: [`Duplicate: ${dupe.firstName} ${dupe.lastName}${ref} already uses the same ${field}.`] } };
+    }
+  }
+
+  const updated = await dbRetry(() => prisma.beneficiary.update({
+    where: { id: beneficiaryId },
+    data: {
+      firstName:            data.firstName,
+      middleName:           data.middleName   || null,
+      lastName:             data.lastName,
+      dateOfBirth:          data.dateOfBirth ? new Date(data.dateOfBirth) : null,
+      gender:               data.gender,
+      nationalId:           data.nationalId   || null,
+      birthCertNo:          data.birthCertNo  || null,
+      phone:                data.phone        || null,
+      email:                data.email        || null,
+      address:              data.address      || null,
+      county:               data.county       || null,
+      guardianName:         data.guardianName || null,
+      guardianPhone:        data.guardianPhone || null,
+      guardianEmail:        data.guardianEmail || null,
+      guardianRelationship: data.guardianRelationship || null,
+    },
+  }));
+
+  prisma.auditLog.create({
+    data: {
+      organizationId: ctx.organization.id,
+      actorId: ctx.user.id,
+      action: "UPDATE",
+      entity: "Beneficiary",
+      entityId: beneficiaryId,
+      before: existing as any,
+      after: updated as any,
+    },
+  }).catch(() => null);
+
+  revalidatePath(`/${orgSlug}/beneficiaries/${beneficiaryId}`);
+  revalidatePath(`/${orgSlug}/beneficiaries`);
+  return { ok: true, id: beneficiaryId };
+}
+
 /** Soft-delete a beneficiary. */
 export async function deleteBeneficiary(orgSlug: string, beneficiaryId: string) {
   const ctx = await requireTenant(orgSlug);
