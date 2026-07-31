@@ -67,26 +67,21 @@ export async function approveRollcall(
   orgSlug: string,
   branchId: string,
   sessionId: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  try {
-    const ctx = await requireTenant(orgSlug);
-    if (!can(ctx.role, ctx.permissions, PERMISSIONS.BRANCH_WRITE)) {
-      return { ok: false, error: "You don't have permission to approve rollcalls." };
-    }
-
-    await dbRetry(() =>
-      prisma.trainingSession.update({
-        where: { id: sessionId },
-        data: { status: "APPROVED", approvedById: ctx.user.id, approvedAt: new Date() },
-      })
-    );
-
-    revalidatePath(`/${orgSlug}/branches/${branchId}`);
-    revalidatePath(`/${orgSlug}/branches/${branchId}/rollcall`);
-    return { ok: true };
-  } catch (err: any) {
-    return { ok: false, error: err?.message ?? "Approval failed" };
+): Promise<void> {
+  const ctx = await requireTenant(orgSlug);
+  if (!can(ctx.role, ctx.permissions, PERMISSIONS.BRANCH_WRITE)) {
+    throw new Error("You don't have permission to approve rollcalls.");
   }
+
+  await dbRetry(() =>
+    prisma.trainingSession.update({
+      where: { id: sessionId },
+      data: { status: "APPROVED", approvedById: ctx.user.id, approvedAt: new Date() } as any,
+    })
+  );
+
+  revalidatePath(`/${orgSlug}/branches/${branchId}`);
+  revalidatePath(`/${orgSlug}/branches/${branchId}/rollcall`);
 }
 
 /** Sync an offline-queued rollcall draft — same logic but no redirect. */
