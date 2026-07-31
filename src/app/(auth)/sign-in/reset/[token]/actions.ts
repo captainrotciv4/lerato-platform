@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/db/prisma";
 import { hashPassword } from "@/lib/auth/password";
+import { validatePassword } from "@/lib/auth/password-rules";
 
 export async function resetPassword(
   token: string,
@@ -11,9 +12,8 @@ export async function resetPassword(
   const password = formData.get("password") as string;
   const confirm  = formData.get("confirm")  as string;
 
-  if (!password || password.length < 8) {
-    return { ok: false, message: "Password must be at least 8 characters." };
-  }
+  const pwdError = validatePassword(password ?? "");
+  if (pwdError) return { ok: false, message: pwdError + "." };
   if (password !== confirm) {
     return { ok: false, message: "Passwords do not match." };
   }

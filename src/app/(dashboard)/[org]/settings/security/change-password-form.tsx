@@ -1,11 +1,13 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Loader2, CheckCircle2, ShieldCheck } from "lucide-react";
 import { changePassword } from "./actions";
+import { PasswordStrengthChecklist } from "@/components/password-strength";
 
 export function ChangePasswordForm() {
   const [state, action, pending] = useActionState(changePassword, null);
+  const [newPwd, setNewPwd] = useState("");
 
   return (
     <div className="card space-y-4">
@@ -44,11 +46,13 @@ export function ChangePasswordForm() {
               name="newPassword"
               type="password"
               required
-              minLength={8}
               autoComplete="new-password"
               className="mt-1 w-full"
-              placeholder="At least 8 characters"
+              placeholder="Strong password"
+              value={newPwd}
+              onChange={(e) => setNewPwd(e.target.value)}
             />
+            <PasswordStrengthChecklist password={newPwd} />
           </div>
           <div>
             <label htmlFor="confirmPassword">Confirm new password</label>

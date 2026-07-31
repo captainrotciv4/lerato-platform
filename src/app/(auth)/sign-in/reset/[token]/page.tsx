@@ -1,15 +1,17 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { resetPassword } from "./actions";
 import { use } from "react";
+import { PasswordStrengthChecklist } from "@/components/password-strength";
 
 export default function ResetPasswordPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
   const boundAction = resetPassword.bind(null, token);
   const [state, action, pending] = useActionState(boundAction, null);
+  const [newPwd, setNewPwd] = useState("");
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--bg-muted)] px-4">
@@ -42,11 +44,13 @@ export default function ResetPasswordPage({ params }: { params: Promise<{ token:
                   name="password"
                   type="password"
                   required
-                  minLength={8}
                   autoComplete="new-password"
                   className="mt-1 w-full"
-                  placeholder="At least 8 characters"
+                  placeholder="Strong password"
+                  value={newPwd}
+                  onChange={(e) => setNewPwd(e.target.value)}
                 />
+                <PasswordStrengthChecklist password={newPwd} />
               </div>
               <div>
                 <label htmlFor="confirm">Confirm new password</label>

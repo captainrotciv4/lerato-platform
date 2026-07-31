@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { compare } from "bcryptjs";
 import { hashPassword } from "@/lib/auth/password";
+import { validatePassword } from "@/lib/auth/password-rules";
 
 export async function changePassword(
   _prev: { ok: boolean; message: string } | null,
@@ -21,9 +22,8 @@ export async function changePassword(
   if (!currentPassword || !newPassword) {
     return { ok: false, message: "All fields are required." };
   }
-  if (newPassword.length < 8) {
-    return { ok: false, message: "New password must be at least 8 characters." };
-  }
+  const pwdError = validatePassword(newPassword ?? "");
+  if (pwdError) return { ok: false, message: pwdError + "." };
   if (newPassword !== confirmPassword) {
     return { ok: false, message: "New passwords do not match." };
   }

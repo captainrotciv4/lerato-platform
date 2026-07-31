@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createTeamMember } from "../actions";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { PasswordInputWithStrength } from "@/components/password-input";
 
 export const metadata = { title: "Add team member — Lerato Platform" };
 
@@ -70,7 +71,7 @@ export default async function NewTeamMemberPage({ params }: { params: Promise<{ 
           </div>
           <div>
             <label className={label}>Temporary password *</label>
-            <input name="password" type="password" required minLength={8} placeholder="Min 8 characters" className={input} />
+            <PasswordInputWithStrength name="password" required placeholder="Strong password" className={input} />
           </div>
           <div>
             <label className={label}>Platform role *</label>

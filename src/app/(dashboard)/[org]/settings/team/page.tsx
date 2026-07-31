@@ -2,10 +2,10 @@ import { requireTenant } from "@/lib/tenant/context";
 import { prisma, dbRetry } from "@/lib/db/prisma";
 import { can, PERMISSIONS } from "@/lib/auth/permissions";
 import { redirect } from "next/navigation";
-import { removeMember } from "./actions";
 import Link from "next/link";
 import { Plus, MapPin } from "lucide-react";
 import { initials } from "@/lib/utils";
+import { TeamActionsCell } from "./team-actions-cell";
 
 export const metadata = { title: "Team — Lerato Platform" };
 
@@ -99,11 +99,12 @@ export default async function TeamPage({ params }: { params: Promise<{ org: stri
                   )}
                 </td>
                 <td className="px-5 py-3 text-right">
-                  {m.user.id !== ctx.user.id && (
-                    <form action={removeMember.bind(null, org, m.id)}>
-                      <button className="text-xs text-red-500 hover:underline">Remove</button>
-                    </form>
-                  )}
+                  <TeamActionsCell
+                    org={org}
+                    userId={m.user.id}
+                    membershipId={m.id}
+                    isSelf={m.user.id === ctx.user.id}
+                  />
                 </td>
               </tr>
             ))}
