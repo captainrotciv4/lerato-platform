@@ -45,6 +45,7 @@ const NAV_FOUNDATION: NavItem[] = [
   { href: "/settings",          label: "Settings",    iconName: "Settings",    permission: PERMISSIONS.ORG_SETTINGS },
   { href: "/settings/team",     label: "Team",         iconName: "UsersRound",  permission: PERMISSIONS.ORG_SETTINGS },
   { href: "/settings/security", label: "Security",     iconName: "ShieldCheck" },
+  { href: "/settings/audit",    label: "Audit Logs",   iconName: "ShieldAlert", permission: PERMISSIONS.AUDIT_VIEW },
   { href: "/sync",              label: "Offline Sync", iconName: "CloudUpload" },
 ];
 
@@ -80,6 +81,7 @@ const NAV_ACADEMY: NavItem[] = [
   { href: "/settings",          label: "Settings",        iconName: "Settings",    permission: PERMISSIONS.ORG_SETTINGS },
   { href: "/settings/team",     label: "Team",             iconName: "UsersRound",  permission: PERMISSIONS.ORG_SETTINGS },
   { href: "/settings/security", label: "Security",         iconName: "ShieldCheck" },
+  { href: "/settings/audit",    label: "Audit Logs",       iconName: "ShieldAlert", permission: PERMISSIONS.AUDIT_VIEW },
   { href: "/sync",              label: "Offline Sync",     iconName: "CloudUpload" },
 ];
 
@@ -115,6 +117,7 @@ const NAV_MISSION: NavItem[] = [
   { href: "/settings",          label: "Settings",        iconName: "Settings",      permission: PERMISSIONS.ORG_SETTINGS },
   { href: "/settings/team",     label: "Team",             iconName: "UsersRound",    permission: PERMISSIONS.ORG_SETTINGS },
   { href: "/settings/security", label: "Security",         iconName: "ShieldCheck" },
+  { href: "/settings/audit",    label: "Audit Logs",       iconName: "ShieldAlert",   permission: PERMISSIONS.AUDIT_VIEW },
   { href: "/sync",              label: "Offline Sync",     iconName: "CloudUpload" },
 ];
 

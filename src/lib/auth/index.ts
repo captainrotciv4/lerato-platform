@@ -39,6 +39,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           null;
         const ua = request?.headers?.get("user-agent") ?? null;
 
+        // Rate limit: block after 5 failures for this email in 15 minutes
+        const windowStart = new Date(Date.now() - 15 * 60 * 1000);
+        const recentFailures = await dbRetry(() =>
+          prisma.loginLog.count({
+            where: { email: parsed.data.email, success: false, createdAt: { gte: windowStart } },
+          })
+        );
+        if (recentFailures >= 5) {
+          prisma.loginLog.create({
+            data: { email: parsed.data.email, success: false, ipAddress: ip, userAgent: ua },
+          }).catch(() => null);
+          return null;
+        }
+
         const user = await dbRetry(() =>
           prisma.user.findUnique({ where: { email: parsed.data.email } })
         );
@@ -70,4 +84,37 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
+  callbacks: {
+    async jwt({ token, user }) {
+      // Initial sign-in: stamp userId and check time
+      if (user?.id) {
+        return { ...token, userId: user.id, checkedAt: Date.now() };
+      }
+      // Subsequent requests: re-validate user.active every 30 minutes
+      if (token.userId) {
+        const checkedAt = (token.checkedAt as number | undefined) ?? 0;
+        if (Date.now() - checkedAt > 30 * 60 * 1000) {
+          const dbUser = await dbRetry(() =>
+            prisma.user.findUnique({
+              where: { id: token.userId as string },
+              select: { active: true },
+            })
+          ).catch(() => null);
+          if (!dbUser?.active) {
+            // Remove userId — session callback won't populate user.id → requireTenant redirects
+            (token as any).userId = undefined;
+            return token;
+          }
+          token.checkedAt = Date.now();
+        }
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (token.userId && session.user) {
+        session.user.id = token.userId as string;
+      }
+      return session;
+    },
+  },
 });
