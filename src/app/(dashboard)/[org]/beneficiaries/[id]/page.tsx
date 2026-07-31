@@ -3,7 +3,7 @@ import { prisma, dbRetry } from "@/lib/db/prisma";
 import { can, PERMISSIONS } from "@/lib/auth/permissions";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Trash2, ClipboardList } from "lucide-react";
+import { ArrowLeft, Trash2, ClipboardList, CheckCircle2 } from "lucide-react";
 import { fullName, formatDate, initials } from "@/lib/utils";
 import {
   updateAthleteProfile,
@@ -34,10 +34,13 @@ const REC_STYLES: Record<string, { cls: string; label: string }> = {
 
 export default async function PlayerProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ org: string; id: string }>;
+  searchParams: Promise<{ saved?: string }>;
 }) {
   const { org, id } = await params;
+  const { saved } = await searchParams;
   const ctx = await requireTenant(org);
   const canEdit = can(ctx.role, ctx.permissions, PERMISSIONS.BENEFICIARY_WRITE);
   const isAcademy = ctx.organization.type === "ACADEMY";
@@ -95,6 +98,13 @@ export default async function PlayerProfilePage({
         <ArrowLeft className="h-4 w-4" />
         {isAcademy ? "Back to players" : "Back to beneficiaries"}
       </Link>
+
+      {saved && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          Profile updated successfully.
+        </div>
+      )}
 
       {/* ── Hero ────────────────────────────────────────────────────────── */}
       <div className="card overflow-hidden !p-0">

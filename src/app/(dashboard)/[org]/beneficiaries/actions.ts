@@ -443,7 +443,7 @@ export async function updateAthleteProfile(orgSlug: string, beneficiaryId: strin
   );
 
   revalidatePath(`/${orgSlug}/beneficiaries/${beneficiaryId}`);
-  redirect(`/${orgSlug}/beneficiaries/${beneficiaryId}`);
+  redirect(`/${orgSlug}/beneficiaries/${beneficiaryId}?saved=1`);
 }
 
 const SeasonStatsSchema = z.object({
@@ -469,7 +469,7 @@ export async function updateSeasonStats(orgSlug: string, beneficiaryId: string, 
   );
 
   revalidatePath(`/${orgSlug}/beneficiaries/${beneficiaryId}`);
-  redirect(`/${orgSlug}/beneficiaries/${beneficiaryId}`);
+  redirect(`/${orgSlug}/beneficiaries/${beneficiaryId}?saved=1`);
 }
 
 // ── Student profile actions ────────────────────────────────────────────────
@@ -507,7 +507,7 @@ export async function updateStudentProfile(orgSlug: string, beneficiaryId: strin
   );
 
   revalidatePath(`/${orgSlug}/beneficiaries/${beneficiaryId}`);
-  redirect(`/${orgSlug}/beneficiaries/${beneficiaryId}`);
+  redirect(`/${orgSlug}/beneficiaries/${beneficiaryId}?saved=1`);
 }
 
 // ── Scout report actions ───────────────────────────────────────────────────

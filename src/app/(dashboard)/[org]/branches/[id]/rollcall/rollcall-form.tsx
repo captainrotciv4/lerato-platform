@@ -44,6 +44,19 @@ export function RollcallForm({ org, branchId, branchName, players, today }: Prop
   const [savedOffline, setSavedOffline] = useState(false);
   const [error, setError]     = useState("");
   const [search, setSearch]   = useState("");
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(
+    () => new Set(players.map((p) => p.id))
+  );
+
+  const allChecked = checkedIds.size === players.length;
+
+  function toggleAll() {
+    if (allChecked) {
+      setCheckedIds(new Set());
+    } else {
+      setCheckedIds(new Set(players.map((p) => p.id)));
+    }
+  }
 
   const visible = search
     ? players.filter((p) => {
@@ -165,14 +178,23 @@ export function RollcallForm({ org, branchId, branchName, players, today }: Prop
 
       {/* Player list */}
       <div className="card !p-0 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
+        <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <CheckSquare className="h-4 w-4 text-[var(--fg-muted)]" />
             <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-[var(--fg-muted)]">
-              Players ({players.length})
+              Players — <span className="text-[var(--brand-primary)]">{checkedIds.size}</span>/{players.length} present
             </h2>
           </div>
-          <span className="text-xs text-[var(--fg-muted)]">Tick = present · untick = absent</span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-[var(--fg-muted)]">Tick = present</span>
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="text-xs font-medium text-[var(--brand-primary)] hover:underline"
+            >
+              {allChecked ? "Deselect all" : "Select all"}
+            </button>
+          </div>
         </div>
 
         <div className="border-b border-[var(--border)] px-5 py-3">
@@ -201,7 +223,15 @@ export function RollcallForm({ org, branchId, branchName, players, today }: Prop
                 <input
                   type="checkbox"
                   name={`present_${b.id}`}
-                  defaultChecked
+                  checked={checkedIds.has(b.id)}
+                  onChange={(e) =>
+                    setCheckedIds((prev) => {
+                      const next = new Set(prev);
+                      if (e.target.checked) next.add(b.id);
+                      else next.delete(b.id);
+                      return next;
+                    })
+                  }
                   className="!w-auto h-4 w-4 accent-[var(--brand-primary)]"
                 />
                 <div className="flex-1 min-w-0">
