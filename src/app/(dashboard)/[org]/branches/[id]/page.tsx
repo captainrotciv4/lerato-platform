@@ -29,6 +29,9 @@ export default async function BranchDetailPage({
       prisma.branch.findFirst({
         where: { id, organizationId: ctx.organization.id },
         include: {
+          _count: {
+            select: { beneficiaries: { where: { deletedAt: null } } },
+          },
           beneficiaries: {
             where: { deletedAt: null },
             orderBy: { createdAt: "desc" },
@@ -169,7 +172,7 @@ export default async function BranchDetailPage({
         <div className="flex gap-6 border-t border-[var(--border)] pt-4 text-sm">
           <div className="flex items-center gap-2 text-[var(--fg-muted)]">
             <Users className="h-4 w-4" />
-            <span><strong className="text-[var(--fg)]">{branch.beneficiaries.length}</strong> players</span>
+            <span><strong className="text-[var(--fg)]">{branch._count.beneficiaries}</strong> players</span>
           </div>
           <div className="flex items-center gap-2 text-[var(--fg-muted)]">
             <ShieldCheck className="h-4 w-4" />
